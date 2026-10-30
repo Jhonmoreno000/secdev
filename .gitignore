@@ -20,6 +20,8 @@ lib/
 out/
 target/
 dist/
+obj/
+src/**/obj/
 x64/
 x86/
 ARM64/
