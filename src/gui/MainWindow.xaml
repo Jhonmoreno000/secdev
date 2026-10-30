@@ -1,0 +1,303 @@
+<Window x:Class="Secdev.Workstation.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="secdev // Tactical AI Workstation"
+        Height="880" Width="1440"
+        MinHeight="680" MinWidth="1050"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen">
+
+    <!-- Outer Container with Custom Cyber Border -->
+    <Border Background="{StaticResource BrushObsidian}"
+            BorderBrush="{StaticResource BrushBorder}"
+            BorderThickness="1"
+            CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="42"/> <!-- Header / TitleBar -->
+                <RowDefinition Height="*"/>  <!-- Main Workstation Panes -->
+                <RowDefinition Height="36"/> <!-- Bottom Telemetry HUD -->
+            </Grid.RowDefinitions>
+
+            <!-- ========================================== -->
+            <!-- ROW 0: Custom Header / Draggable TitleBar  -->
+            <!-- ========================================== -->
+            <Border Grid.Row="0"
+                    Background="{StaticResource BrushSurface}"
+                    BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid Margin="16,0,10,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/> <!-- Title / Logo -->
+                        <ColumnDefinition Width="*"/>    <!-- Status Badges -->
+                        <ColumnDefinition Width="Auto"/> <!-- Window Controls -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Title -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⚡ secdev"
+                                   FontFamily="Consolas, JetBrains Mono"
+                                   FontSize="15"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource BrushNeonGreen}"/>
+                        <TextBlock Text=" // v1.0.0-native // tactical ai workstation"
+                                   FontFamily="Consolas, JetBrains Mono"
+                                   FontSize="12"
+                                   Foreground="{StaticResource BrushTextMuted}"
+                                   Margin="8,2,0,0"/>
+                    </StackPanel>
+
+                    <!-- Security & Hardware Badges -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <!-- Air-Gap Badge -->
+                        <Border Background="#132c21" BorderBrush="#00ff9d" BorderThickness="1" CornerRadius="3" Padding="8,2" Margin="4,0">
+                            <TextBlock Text="● 100% AIR-GAPPED" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#00ff9d"/>
+                        </Border>
+                        <!-- GPU Hardware Badge -->
+                        <Border Background="#112c38" BorderBrush="#00e5ff" BorderThickness="1" CornerRadius="3" Padding="8,2" Margin="4,0">
+                            <TextBlock Text="GPU: NVIDIA RTX 3050 (4GB VRAM)" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#00e5ff"/>
+                        </Border>
+                        <!-- Model Active Badge -->
+                        <Border Background="#251e12" BorderBrush="#d29922" BorderThickness="1" CornerRadius="3" Padding="8,2" Margin="4,0">
+                            <TextBlock Text="MODEL: Qwen2.5-Coder-7B" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#d29922"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Window Control Buttons -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="—" Style="{StaticResource CyberButton}" Padding="10,2" Margin="2,0" Click="BtnMinimize_Click" ToolTip="Minimize"/>
+                        <Button Content="▢" Style="{StaticResource CyberButton}" Padding="10,2" Margin="2,0" Click="BtnMaximize_Click" ToolTip="Maximize / Restore"/>
+                        <Button Content="✕" Style="{StaticResource CyberButton}" Padding="10,2" Margin="2,0" Click="BtnClose_Click" ToolTip="Close secdev" Background="#331919" BorderBrush="#f85149" Foreground="#f85149"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ========================================== -->
+            <!-- ROW 1: Workstation Tiling Panes            -->
+            <!-- ========================================== -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" MinWidth="420"/> <!-- Left: Code / AST / Reversing -->
+                    <ColumnDefinition Width="4"/>                  <!-- Splitter -->
+                    <ColumnDefinition Width="1*" MinWidth="380"/>   <!-- Right: AI Copilot -->
+                </Grid.ColumnDefinitions>
+
+                <!-- LEFT PANE: Code Editor & Vulnerability AST -->
+                <Border Grid.Column="0" Background="{StaticResource BrushSurface}" Margin="6,6,0,6" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="36"/> <!-- Tabs -->
+                            <RowDefinition Height="*"/>  <!-- Code View -->
+                            <RowDefinition Height="160"/> <!-- AST / Inspector Sub-panel -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Tab Header -->
+                        <Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                                <Border Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushNeonGreen}" BorderThickness="0,0,0,2" Padding="12,6">
+                                    <TextBlock Text="exploit_audit.c *" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
+                                </Border>
+                                <Border Padding="12,6">
+                                    <TextBlock Text="AST Topology" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}"/>
+                                </Border>
+                                <Border Padding="12,6">
+                                    <TextBlock Text="Disassembly / Hex" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Code Editor / Viewer with Syntax Colors -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                            <StackPanel Margin="16,12">
+                                <TextBlock Text="// secdev Security Analysis Buffer: Target Memory Layout" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}"/>
+                                <TextBlock Text="#include &lt;stdio.h&gt;" FontFamily="Consolas" Foreground="{StaticResource BrushCyberCyan}"/>
+                                <TextBlock Text="#include &lt;string.h&gt;" FontFamily="Consolas" Foreground="{StaticResource BrushCyberCyan}"/>
+                                <TextBlock Text="#include &lt;stdlib.h&gt;" FontFamily="Consolas" Foreground="{StaticResource BrushCyberCyan}"/>
+                                <TextBlock Text="" FontFamily="Consolas"/>
+                                <TextBlock Text="void handle_connection(const char *user_payload) {" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
+                                <TextBlock Text="    char stack_buffer[64]; // Vulnerable allocation" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
+                                <TextBlock Text="" FontFamily="Consolas"/>
+
+                                <!-- Vulnerability Highlight Zone -->
+                                <Border Background="#2a1215" BorderBrush="{StaticResource BrushRed}" BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,4">
+                                    <StackPanel>
+                                        <TextBlock Text="    strcpy(stack_buffer, user_payload); // Line 14" FontFamily="Consolas" FontWeight="Bold" Foreground="{StaticResource BrushRed}"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                            <TextBlock Text="    [!] CRITICAL: Potential Buffer Overflow (CWE-120)" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushRed}"/>
+                                            <TextBlock Text=" - No boundary check on user_payload" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="    printf(&quot;Payload processed: %s\n&quot;, stack_buffer);" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
+                                <TextBlock Text="}" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
+                                <TextBlock Text="" FontFamily="Consolas"/>
+                                <TextBlock Text="int main(int argc, char **argv) {" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
+                                <TextBlock Text="    if (argc &gt; 1) handle_connection(argv[1]);" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
+                                <TextBlock Text="    return 0;" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
+                                <TextBlock Text="}" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- AST / Security Inspection Sub-Panel -->
+                        <Border Grid.Row="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="12,8">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="STATIC AST SECURITY AUDITOR" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushCyberCyan}"/>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="▸ FunctionDef: handle_connection [line 8] -> Stack Frame: 0x40 bytes" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushText}"/>
+                                        <TextBlock Text="  └─ VarDecl: stack_buffer (char[64]) at offset [RBP - 0x40]" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAmber}"/>
+                                        <TextBlock Text="  └─ CallExpr: strcpy [UNSAFE SYMBOL] -> Target: stack_buffer" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushRed}"/>
+                                        <TextBlock Text="  └─ Taint Analysis: 'user_payload' flows directly from argv[1] without bounds sanitizer" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushRed}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- GridSplitter -->
+                <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{StaticResource BrushBorder}"/>
+
+                <!-- RIGHT PANE: AI Security Agent & Reasoning Stream -->
+                <Border Grid.Column="2" Background="{StaticResource BrushSurface}" Margin="0,6,6,6" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="36"/> <!-- Header -->
+                            <RowDefinition Height="*"/>  <!-- Chat / Token Stream -->
+                            <RowDefinition Height="Auto"/> <!-- Quick Action Bar -->
+                            <RowDefinition Height="54"/> <!-- User Input -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Pane Header -->
+                        <Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,0">
+                            <Grid VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🤖 Local Security Copilot" FontFamily="Consolas" FontWeight="Bold" Foreground="{StaticResource BrushNeonGreen}"/>
+                                    <TextBlock Text=" [Qwen2.5-Coder-7B]" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}" Margin="6,0,0,0"/>
+                                </StackPanel>
+                                <TextBlock Text="● 28.5 tok/s (Active)" HorizontalAlignment="Right" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushNeonGreen}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Chat & Token Stream -->
+                        <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12">
+                            <StackPanel x:Name="ChatContainer">
+                                <!-- AI Assistant Reasoning Block -->
+                                <Border Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <!-- Thought / Chain-of-Thought Stream -->
+                                        <Border Background="#0f1922" BorderBrush="{StaticResource BrushCyberCyan}" BorderThickness="1,0,0,0" Padding="8,4" Margin="0,0,0,8">
+                                            <StackPanel>
+                                                <TextBlock Text="&lt;thinking&gt;" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushCyberCyan}"/>
+                                                <TextBlock Text="Inspecting handle_connection: User payload reaches strcpy with no length validation. The return address on the stack (RBP + 8) can be overwritten with ~72 bytes of padding. Vulnerability classification: CWE-120."
+                                                           FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="&lt;/thinking&gt;" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushCyberCyan}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock Text="He analizado 'exploit_audit.c'. La función handle_connection contiene una vulnerabilidad clásica de desbordamiento de búfer en pila (Buffer Overflow)."
+                                                   FontFamily="Consolas" Foreground="{StaticResource BrushText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                        <TextBlock Text="🛡️ Mitigación Segura Propuesta:" FontFamily="Consolas" FontWeight="Bold" Foreground="{StaticResource BrushNeonGreen}" Margin="0,4,0,4"/>
+                                        <Border Background="{StaticResource BrushObsidian}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="3" Padding="8">
+                                            <TextBlock Text="strncpy_s(stack_buffer, sizeof(stack_buffer), user_payload, _TRUNCATE);"
+                                                       FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}" TextWrapping="Wrap"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Quick Action Bar -->
+                        <Border Grid.Row="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,1" Padding="8,6">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="⚡ Simulate Exploit" Style="{StaticResource CyberButton}" Margin="4,0" Click="BtnSimulate_Click"/>
+                                <Button Content="🛡️ Apply Patch" Style="{StaticResource CyberButton}" Margin="4,0" Click="BtnApplyPatch_Click"/>
+                                <Button Content="📋 Export Audit" Style="{StaticResource CyberButton}" Margin="4,0" Click="BtnExport_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- User Prompt Input -->
+                        <Border Grid.Row="3" Background="{StaticResource BrushSurface}" Padding="8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="80"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TxtPrompt"
+                                         Grid.Column="0"
+                                         Background="{StaticResource BrushPanel}"
+                                         Foreground="{StaticResource BrushText}"
+                                         BorderBrush="{StaticResource BrushBorder}"
+                                         BorderThickness="1"
+                                         FontFamily="Consolas, JetBrains Mono"
+                                         FontSize="12"
+                                         Padding="8,6"
+                                         VerticalContentAlignment="Center"
+                                         KeyDown="TxtPrompt_KeyDown"/>
+                                <Button Grid.Column="1"
+                                        Content="SEND ⏎"
+                                        Style="{StaticResource NeonActionButton}"
+                                        Margin="6,0,0,0"
+                                        Click="BtnSend_Click"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!-- ROW 2: Bottom Real-Time Telemetry HUD     -->
+            <!-- ========================================== -->
+            <Border Grid.Row="2"
+                    Background="{StaticResource BrushSurface}"
+                    BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="0,1,0,0">
+                <Grid Margin="16,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Hardware VRAM & Tokens/sec -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- VRAM Meter -->
+                        <TextBlock Text="VRAM:" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        <ProgressBar Width="90" Height="8" Minimum="0" Maximum="4.0" Value="2.8" Margin="6,0"
+                                     Foreground="{StaticResource BrushNeonGreen}" Background="#161b22" BorderBrush="{StaticResource BrushBorder}"/>
+                        <TextBlock Text="2.8 GB / 4.0 GB (RTX 3050)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushNeonGreen}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <!-- Speed Counter -->
+                        <TextBlock Text="SPEED: " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtSpeed" Text="28.5 tok/s" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushCyberCyan}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+
+                        <!-- GPU Temp -->
+                        <TextBlock Text="GPU TEMP: " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                        <TextBlock Text="54°C" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Center: RAM & FPS -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="RAM: 6.4 GB / 32 GB  |  ENGINE: 120 FPS Direct3D  |  OFFLINE AIR-GAP: ENFORCED"
+                                   FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                    </StackPanel>
+
+                    <!-- Right: Engine Status -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="STATUS: " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                        <TextBlock Text="ONLINE (LOCAL)" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushNeonGreen}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

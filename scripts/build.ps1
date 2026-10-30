@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Compiles the native secdev executable and graphics engine.
+    Compiles the native secdev workstation and custom engine.
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Debug", "Release")]
+    [ValidateSet("Release", "Debug")]
     [string]$Configuration = "Release"
 )
 
@@ -14,34 +14,24 @@ $ErrorActionPreference = "Stop"
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $projectRoot
 
-Write-Host "`n[*] Configuring CMake for secdev ($Configuration)..." -ForegroundColor Cyan
+Write-Host "`n========================================================" -ForegroundColor Cyan
+Write-Host "   secdev // Native Engine & Workstation Compiler" -ForegroundColor Cyan
+Write-Host "========================================================`n" -ForegroundColor Cyan
 
-# Locate vswhere to set up developer environment if cmake/cl not in PATH
-if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vswhere) {
-        $vsPath = & $vswhere -latest -property installationPath
-        $cmakeVs = Join-Path $vsPath "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
-        if (Test-Path $cmakeVs) {
-            $env:PATH = "$env:PATH;$(Split-Path $cmakeVs)"
-            Write-Host "[+] Loaded CMake from Visual Studio: $cmakeVs" -ForegroundColor Green
-        }
-    }
-}
+# 1. Compile Native Desktop Workstation (DirectX / Direct3D accelerated)
+Write-Host "[1/2] Compiling Native Workstation GUI (Direct3D Native)..." -ForegroundColor Yellow
+$guiProject = Join-Path $projectRoot "src\gui\gui.csproj"
+$buildOut = Join-Path $projectRoot "build"
 
-if (-not (Test-Path "build")) {
-    New-Item -ItemType Directory -Path "build" | Out-Null
-}
+dotnet build $guiProject -c $Configuration -o $buildOut --nologo
 
-cmake -B build -DCMAKE_BUILD_TYPE=$Configuration
-cmake --build build --config $Configuration --parallel
-
-if (Test-Path "build\$Configuration\secdev.exe") {
-    Copy-Item "build\$Configuration\secdev.exe" "build\secdev.exe" -Force
-}
-
-if (Test-Path "build\secdev.exe") {
-    Write-Host "`n[SUCCESS] Build complete: build\secdev.exe" -ForegroundColor Green
+if (Test-Path "$buildOut\secdev.exe") {
+    Write-Host "[+] Compiled successfully: $buildOut\secdev.exe" -ForegroundColor Green
 } else {
-    Write-Host "`n[ERROR] Build finished but binary was not found." -ForegroundColor Red
+    Write-Host "[-] GUI Compilation failed." -ForegroundColor Red
 }
+
+Write-Host "`n[2/2] Compilation Summary:" -ForegroundColor Yellow
+Write-Host "  -> Binary location: $buildOut\secdev.exe" -ForegroundColor Green
+Write-Host "  -> To launch right now from terminal, type:" -ForegroundColor White
+Write-Host "     secdev`n" -ForegroundColor Yellow
