@@ -15,7 +15,23 @@ param(
     [string]$Quant = "Q4_K_M"
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
+
+# 1. Ensure Ollama local inference server is installed and serving Qwen 2.5 Coder 7B
+$ollamaExe = Join-Path $env:LOCALAPPDATA "Programs\Ollama\ollama.exe"
+if (-not (Test-Path $ollamaExe)) {
+    Write-Host "[*] Instalando motor de inferencia local Ollama via winget..." -ForegroundColor Cyan
+    winget install --id Ollama.Ollama --silent --accept-package-agreements --accept-source-agreements
+}
+
+if (Test-Path $ollamaExe) {
+    Write-Host "[+] Iniciando servidor local Ollama (127.0.0.1:11434)..." -ForegroundColor Green
+    Start-Process -FilePath $ollamaExe -ArgumentList "serve" -WindowStyle Hidden -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Write-Host "[+] Descargando modelo recomendado qwen2.5-coder:7b en Ollama..." -ForegroundColor Cyan
+    & $ollamaExe pull qwen2.5-coder:7b
+    exit 0
+}
 
 $modelsCatalog = @{
     "qwen-7b" = @{
