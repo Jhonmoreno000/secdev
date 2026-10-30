@@ -1,0 +1,50 @@
+# Set default behavior to automatically normalize line endings
+* text=auto eol=lf
+
+# Force specific text files to LF (POSIX / Linux / Cross-platform scripts)
+*.sh text eol=lf
+*.bash text eol=lf
+*.py text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+
+# Force Windows scripts to CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# C / C++ / Shaders
+*.c text eol=lf
+*.cpp text eol=lf
+*.cc text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.glsl text eol=lf
+*.vert text eol=lf
+*.frag text eol=lf
+*.hlsl text eol=lf
+
+# Binary files (prevent git from corrupting them)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.lib binary
+*.a binary
+*.gguf binary
+*.bin binary
+*.safetensors binary
+*.zip binary
+*.tar.gz binary

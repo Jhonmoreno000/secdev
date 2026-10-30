@@ -1,0 +1,95 @@
+# ==========================================
+# secdev: Comprehensive Git Ignore Rules
+# ==========================================
+
+# Model weights & AI checkpoints (NEVER commit model weights)
+models/*.gguf
+models/*.bin
+models/*.safetensors
+models/*.onnx
+*.gguf
+*.bin
+*.safetensors
+
+# Build & Compilation directories
+build/
+build-*/
+cmake-build-*/
+bin/
+lib/
+out/
+target/
+dist/
+x64/
+x86/
+ARM64/
+CMakeUserPresets.json
+
+# Visual Studio & Windows Dev artifacts
+.vs/
+*.sln.docstates
+*.suo
+*.user
+*.userosscache
+*.sln.user
+Debug/
+Release/
+x64/
+ipch/
+*.VC.db
+*.VC.opendb
+*.pdb
+*.ilk
+*.idb
+*.obj
+*.lib
+*.exp
+*.exe
+*.dll
+
+# Clang / GCC / Ninja
+.ninja_deps
+.ninja_log
+compile_commands.json
+*.gcda
+*.gcno
+*.gcov
+
+# Python artifacts (for scripts and bindings)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# Crash dumps, logs & local state
+logs/
+*.log
+*.dmp
+*.core
+crashpad/
+local_cache/
+sandbox_temp/
+
+# IDE & Editor settings
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets & Environment variables
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
