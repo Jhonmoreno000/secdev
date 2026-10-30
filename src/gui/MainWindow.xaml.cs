@@ -1,8 +1,10 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace Secdev.Workstation
@@ -10,10 +12,184 @@ namespace Secdev.Workstation
     public partial class MainWindow : Window
     {
         private const string PlaceholderText = "Type a message...";
+        private const int WM_SYSCOMMAND = 0x0112;
+        private const int SC_SIZE = 0xF000;
+
+        private bool _forceStackedLayout = false;
+        private bool _isHexExpanded = true;
+        private bool _isAstExpanded = true;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        private enum ResizeDirection
+        {
+            Left = 1,
+            Right = 2,
+            Top = 3,
+            TopLeft = 4,
+            TopRight = 5,
+            Bottom = 6,
+            BottomLeft = 7,
+            BottomRight = 8
+        }
 
         public MainWindow()
         {
             InitializeComponent();
+        }
+
+        private void ResizeWindow(ResizeDirection direction)
+        {
+            if (WindowState == WindowState.Maximized) return;
+            var hwndSource = PresentationSource.FromVisual(this) as HwndSource;
+            if (hwndSource != null)
+            {
+                SendMessage(hwndSource.Handle, WM_SYSCOMMAND, (IntPtr)(SC_SIZE + (int)direction), IntPtr.Zero);
+            }
+        }
+
+        private void ResizeTop_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.Top);
+        private void ResizeBottom_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.Bottom);
+        private void ResizeLeft_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.Left);
+        private void ResizeRight_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.Right);
+        private void ResizeTopLeft_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.TopLeft);
+        private void ResizeTopRight_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.TopRight);
+        private void ResizeBottomLeft_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.BottomLeft);
+        private void ResizeBottomRight_MouseDown(object sender, MouseButtonEventArgs e) => ResizeWindow(ResizeDirection.BottomRight);
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            ApplyResponsiveLayout(e.NewSize.Width, e.NewSize.Height);
+        }
+
+        private void ApplyResponsiveLayout(double width, double height)
+        {
+            if (!IsLoaded) return;
+
+            bool isCompactWidth = width < 920 || _forceStackedLayout;
+            bool isMediumWidth = width >= 920 && width < 1260;
+
+            string modeTag = isCompactWidth ? "COMPACT" : (isMediumWidth ? "MEDIUM" : "WIDE");
+            if (WindowState == WindowState.Maximized)
+            {
+                modeTag = "MAX";
+                OuterBorder.CornerRadius = new CornerRadius(0);
+            }
+            else
+            {
+                OuterBorder.CornerRadius = new CornerRadius(6);
+            }
+
+            TxtResolutionBadge.Text = $"{(int)width}×{(int)height} [{modeTag}]";
+
+            // 1. Header & Footer Responsive Compaction
+            TxtHeaderSubtitle.Visibility = width < 780 ? Visibility.Collapsed : Visibility.Visible;
+            TelemetryExtraGroup.Visibility = width < 980 ? Visibility.Collapsed : Visibility.Visible;
+
+            // 2. Code Minimap & Hex ASCII Column Responsiveness
+            bool showMinimap = width >= 1220 || (isCompactWidth && width >= 720);
+            ColMinimap.Width = showMinimap ? new GridLength(76) : new GridLength(0);
+            MinimapPanel.Visibility = showMinimap ? Visibility.Visible : Visibility.Collapsed;
+
+            bool showHexAscii = width >= 1120 || (isCompactWidth && width >= 680);
+            ColHexDivider.Width = showHexAscii ? new GridLength(16) : new GridLength(0);
+            ColHexAscii.Width = showHexAscii ? GridLength.Auto : new GridLength(0);
+            HexDividerLine.Visibility = showHexAscii ? Visibility.Visible : Visibility.Collapsed;
+            HexAsciiPanel.Visibility = showHexAscii ? Visibility.Visible : Visibility.Collapsed;
+
+            // 3. Adaptive Workspace Orientation: Side-by-Side vs Vertical Stacked
+            if (isCompactWidth)
+            {
+                // Stack LeftWorkstationPane on Top (Row 0), RightWorkstationPane on Bottom (Row 2)
+                WorkspaceColLeft.Width = new GridLength(1, GridUnitType.Star);
+                WorkspaceColSplitter.Width = new GridLength(0);
+                WorkspaceColRight.Width = new GridLength(0);
+                WorkspaceColRight.MinWidth = 0;
+
+                WorkspaceRowTop.Height = new GridLength(1.05, GridUnitType.Star);
+                WorkspaceRowSplitter.Height = new GridLength(6);
+                WorkspaceRowBottom.Height = new GridLength(1.0, GridUnitType.Star);
+
+                Grid.SetColumn(LeftWorkstationPane, 0);
+                Grid.SetRow(LeftWorkstationPane, 0);
+
+                Grid.SetColumn(RightWorkstationPane, 0);
+                Grid.SetRow(RightWorkstationPane, 2);
+
+                MainVerticalSplitter.Visibility = Visibility.Collapsed;
+                MainHorizontalSplitter.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Side-by-Side 2-Column Layout
+                WorkspaceColLeft.Width = new GridLength(1.02, GridUnitType.Star);
+                WorkspaceColSplitter.Width = new GridLength(6);
+                WorkspaceColRight.MinWidth = 280;
+                WorkspaceColRight.Width = new GridLength(1.12, GridUnitType.Star);
+
+                WorkspaceRowTop.Height = new GridLength(1, GridUnitType.Star);
+                WorkspaceRowSplitter.Height = new GridLength(0);
+                WorkspaceRowBottom.Height = new GridLength(0);
+
+                Grid.SetColumn(LeftWorkstationPane, 0);
+                Grid.SetRow(LeftWorkstationPane, 0);
+
+                Grid.SetColumn(RightWorkstationPane, 2);
+                Grid.SetRow(RightWorkstationPane, 0);
+
+                MainVerticalSplitter.Visibility = Visibility.Visible;
+                MainHorizontalSplitter.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void BtnSizeSmall_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Normal;
+            _forceStackedLayout = false;
+            Width = 820;
+            Height = 620;
+            ApplyResponsiveLayout(Width, Height);
+        }
+
+        private void BtnSizeMedium_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Normal;
+            _forceStackedLayout = false;
+            Width = 1160;
+            Height = 740;
+            ApplyResponsiveLayout(Width, Height);
+        }
+
+        private void BtnSizeLarge_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Normal;
+            _forceStackedLayout = false;
+            Width = 1520;
+            Height = 900;
+            ApplyResponsiveLayout(Width, Height);
+        }
+
+        private void BtnToggleLayout_Click(object sender, RoutedEventArgs e)
+        {
+            _forceStackedLayout = !_forceStackedLayout;
+            ApplyResponsiveLayout(ActualWidth, ActualHeight);
+        }
+
+        private void HexHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            _isHexExpanded = !_isHexExpanded;
+            TxtHexChevron.Text = _isHexExpanded ? "⌄ " : "▸ ";
+            HexScrollViewer.Visibility = _isHexExpanded ? Visibility.Visible : Visibility.Collapsed;
+            RowHexSection.Height = _isHexExpanded ? new GridLength(0.88, GridUnitType.Star) : new GridLength(28);
+        }
+
+        private void AstHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            _isAstExpanded = !_isAstExpanded;
+            TxtAstChevron.Text = _isAstExpanded ? "⌄ " : "▸ ";
+            AstScrollViewer.Visibility = _isAstExpanded ? Visibility.Visible : Visibility.Collapsed;
+            RowAstSection.Height = _isAstExpanded ? new GridLength(1.05, GridUnitType.Star) : new GridLength(28);
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -37,6 +213,7 @@ namespace Secdev.Workstation
         private void BtnMaximize_Click(object sender, RoutedEventArgs e)
         {
             WindowState = (WindowState == WindowState.Maximized) ? WindowState.Normal : WindowState.Maximized;
+            ApplyResponsiveLayout(ActualWidth, ActualHeight);
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -188,7 +365,6 @@ namespace Secdev.Workstation
 
             TxtPrompt.Text = string.Empty;
 
-            // 1. Add User Prompt Row (Avatar + Card)
             var userGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
             userGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
             userGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -237,7 +413,6 @@ namespace Secdev.Workstation
             ChatContainer.Children.Add(userGrid);
             ChatScrollViewer.ScrollToEnd();
 
-            // 2. Add Streaming AI Thought-Process Card
             var aiGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
             aiGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
             aiGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
