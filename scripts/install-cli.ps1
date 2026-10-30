@@ -35,13 +35,13 @@ $cmdContent = @"
 setlocal
 set "PROJECT_ROOT=$projectRoot"
 if exist "%PROJECT_ROOT%\build\secdev.exe" (
-    "%PROJECT_ROOT%\build\secdev.exe" %*
+    start "" "%PROJECT_ROOT%\build\secdev.exe" %*
 ) else (
     echo [secdev] Binary not yet compiled in %PROJECT_ROOT%\build\secdev.exe.
     echo [secdev] Compiling or building native target...
     powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\scripts\build.ps1"
     if exist "%PROJECT_ROOT%\build\secdev.exe" (
-        "%PROJECT_ROOT%\build\secdev.exe" %*
+        start "" "%PROJECT_ROOT%\build\secdev.exe" %*
     )
 )
 endlocal
@@ -49,6 +49,14 @@ endlocal
 
 Set-Content -Path $cmdPath -Value $cmdContent -Encoding ASCII
 Write-Host "[+] Generated CMD launcher: $cmdPath" -ForegroundColor Green
+
+# Also place shim into existing User PATH directories (.dotnet\tools) so already-open terminals work without restart
+$dotnetToolsDir = Join-Path $env:USERPROFILE ".dotnet\tools"
+if (Test-Path $dotnetToolsDir) {
+    $shimPath = Join-Path $dotnetToolsDir "$TargetName.cmd"
+    Set-Content -Path $shimPath -Value $cmdContent -Encoding ASCII
+    Write-Host "[+] Installed active-session shim: $shimPath" -ForegroundColor Green
+}
 
 # Add to User PATH if not already present
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")

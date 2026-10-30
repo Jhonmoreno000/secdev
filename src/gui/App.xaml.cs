@@ -1,13 +1,22 @@
-﻿using System.Configuration;
-using System.Data;
+using System;
+using System.IO;
 using System.Windows;
 
-namespace gui;
-
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
-public partial class App : Application
+namespace Secdev.Workstation
 {
+    public partial class App : Application
+    {
+        public App()
+        {
+            DispatcherUnhandledException += (s, e) =>
+            {
+                try
+                {
+                    string logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log");
+                    File.WriteAllText(logPath, e.Exception.ToString());
+                }
+                catch { }
+            };
+        }
+    }
 }
-

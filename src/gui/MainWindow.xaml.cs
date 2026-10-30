@@ -122,10 +122,22 @@ namespace Secdev.Workstation
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            InitializeWorkspaceFiles();
-            LoadPublicSkillsCatalog();
-            StartRealTelemetryLoop();
-            ApplyResponsiveLayout(ActualWidth, ActualHeight);
+            try
+            {
+                InitializeWorkspaceFiles();
+                LoadPublicSkillsCatalog();
+                StartRealTelemetryLoop();
+                ApplyResponsiveLayout(ActualWidth, ActualHeight);
+
+                Activate();
+                Topmost = true;
+                Topmost = false;
+                Focus();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Startup error: {ex.Message}", "secdev", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // =====================================================================
@@ -1219,21 +1231,33 @@ int main(int argc, char **argv) {
 
         private void UpdateMinimapViewportPosition()
         {
-            if (EditorScrollViewer == null || MinimapViewport == null || MinimapPanel == null) return;
+            if (!IsLoaded || EditorScrollViewer == null || MinimapViewport == null || MinimapPanel == null || MinimapCanvas == null)
+                return;
 
             double scrollable = EditorScrollViewer.ScrollableHeight;
-            double panelHeight = Math.Max(80, MinimapPanel.ActualHeight - 16);
-            double totalContentHeight = Math.Max(1.0, MinimapCanvas.Height);
+            double panelHeight = Math.Max(80.0, MinimapPanel.ActualHeight - 16.0);
+            double canvasH = (!double.IsNaN(MinimapCanvas.Height) && MinimapCanvas.Height > 0)
+                ? MinimapCanvas.Height
+                : Math.Max(120.0, MinimapCanvas.ActualHeight);
 
-            double viewportRatio = EditorScrollViewer.ViewportHeight / Math.Max(1.0, EditorScrollViewer.ExtentHeight);
+            double extentH = Math.Max(1.0, EditorScrollViewer.ExtentHeight);
+            double viewportRatio = EditorScrollViewer.ViewportHeight / extentH;
+            if (double.IsNaN(viewportRatio) || double.IsInfinity(viewportRatio) || viewportRatio <= 0)
+                viewportRatio = 0.25;
+
             double sliderHeight = Math.Clamp(panelHeight * viewportRatio, 24.0, panelHeight);
+            if (!double.IsFinite(sliderHeight)) sliderHeight = 40.0;
             MinimapViewport.Height = sliderHeight;
 
-            double scrollRatio = scrollable > 0 ? EditorScrollViewer.VerticalOffset / scrollable : 0.0;
-            double maxTop = Math.Max(0, Math.Min(totalContentHeight, panelHeight) - sliderHeight);
-            double topOffset = 6.0 + (scrollRatio * maxTop);
+            double scrollRatio = (scrollable > 0 && double.IsFinite(scrollable))
+                ? Math.Clamp(EditorScrollViewer.VerticalOffset / scrollable, 0.0, 1.0)
+                : 0.0;
 
-            MinimapViewport.Margin = new Thickness(2, topOffset, 2, 0);
+            double maxTop = Math.Max(0.0, Math.Min(canvasH, panelHeight) - sliderHeight);
+            double topOffset = 6.0 + (scrollRatio * maxTop);
+            if (!double.IsFinite(topOffset)) topOffset = 6.0;
+
+            MinimapViewport.Margin = new Thickness(2.0, topOffset, 2.0, 0.0);
         }
 
         private void Minimap_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1251,9 +1275,16 @@ int main(int argc, char **argv) {
 
         private void ScrollEditorFromMinimapPoint(double clickY)
         {
-            double panelHeight = Math.Max(1.0, Math.Min(MinimapCanvas.Height + 20, MinimapPanel.ActualHeight));
+            if (!IsLoaded || EditorScrollViewer == null || MinimapPanel == null) return;
+            double canvasH = (!double.IsNaN(MinimapCanvas.Height) && MinimapCanvas.Height > 0)
+                ? MinimapCanvas.Height
+                : Math.Max(120.0, MinimapCanvas.ActualHeight);
+            double panelHeight = Math.Max(1.0, Math.Min(canvasH + 20.0, MinimapPanel.ActualHeight));
             double ratio = Math.Clamp((clickY - 6.0) / panelHeight, 0.0, 1.0);
-            EditorScrollViewer.ScrollToVerticalOffset(ratio * EditorScrollViewer.ScrollableHeight);
+            if (double.IsFinite(ratio) && double.IsFinite(EditorScrollViewer.ScrollableHeight))
+            {
+                EditorScrollViewer.ScrollToVerticalOffset(ratio * EditorScrollViewer.ScrollableHeight);
+            }
         }
 
         private void UpdateHexInspection(string text)
