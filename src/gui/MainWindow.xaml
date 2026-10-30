@@ -36,14 +36,13 @@
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                     <Grid Margin="14,0,8,0">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Identificador del Sistema -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                             <Border Width="8" Height="8" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Text="secdev"
                                        FontFamily="Segoe UI Variable Display, Segoe UI"
@@ -54,12 +53,13 @@
                                        Text="  —  Estación de Ingeniería de Software y Ciberseguridad (IA Local)"
                                        FontFamily="Segoe UI"
                                        FontSize="12"
+                                       TextTrimming="CharacterEllipsis"
                                        Foreground="{StaticResource BrushTextSecondary}"
                                        VerticalAlignment="Center"/>
                         </StackPanel>
 
                         <!-- Acciones Rápidas de Proyecto, IA Local y Dimensiones -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                             <Button Content="⬡ Subir Archivos" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Subir o importar archivos de código fuente del usuario al espacio de trabajo"/>
                             <Button Content="📂 Abrir Proyecto" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click" ToolTip="Seleccionar carpeta de proyecto local"/>
                             <Button Content="⑂ Clonar Repositorio" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavGit_Click" ToolTip="Clonar un repositorio Git remoto o gestionar control de cambios"/>
@@ -85,7 +85,7 @@
                         </StackPanel>
 
                         <!-- Controles de Ventana -->
-                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                             <Button Content="—" Style="{StaticResource WindowControlBtn}" Click="BtnMinimize_Click" ToolTip="Minimizar ventana"/>
                             <Button x:Name="BtnMaxRestore" Content="▢" Style="{StaticResource WindowControlBtn}" Click="BtnMaximize_Click" ToolTip="Maximizar o restaurar ventana"/>
                             <Button Content="✕" Style="{StaticResource WindowControlBtn}" Click="BtnClose_Click" ToolTip="Cerrar estación de trabajo"/>
@@ -166,8 +166,8 @@
 
                             <!-- Iconos Inferiores -->
                             <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                <Button Style="{StaticResource SidebarIconButton}" Click="BtnResetBaseline_Click" ToolTip="Fijar el Código Actual como Nueva Línea Base de Comparación">
-                                    <TextBlock Text="↺" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                                <Button Style="{StaticResource SidebarIconButton}" Click="BtnConfirmChanges_Click" ToolTip="Confirmar y Aceptar los Cambios Actuales como Línea Base">
+                                    <TextBlock Text="✓" FontSize="15" FontFamily="Segoe UI Symbol"/>
                                 </Button>
                                 <Grid>
                                     <Border x:Name="IndSettings" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
@@ -200,8 +200,12 @@
                             <!-- Cabecera del Panel Lateral -->
                             <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="12,0">
                                 <Grid>
-                                    <TextBlock x:Name="TxtDrawerTitle" Text="EXPLORADOR DEL PROYECTO" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
-                                    <Button Content="✕" Style="{StaticResource ToolbarMiniBtn}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="BtnCloseDrawer_Click" ToolTip="Cerrar panel lateral"/>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="TxtDrawerTitle" Grid.Column="0" Text="EXPLORADOR DEL PROYECTO" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="1" Content="✕" Style="{StaticResource ToolbarMiniBtn}" VerticalAlignment="Center" Click="BtnCloseDrawer_Click" ToolTip="Cerrar panel lateral"/>
                                 </Grid>
                             </Border>
 
@@ -292,12 +296,12 @@
                                     <RowDefinition x:Name="RowAstHexSection" Height="0.85*" MinHeight="28"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- 1. EDITOR DE CÓDIGO CON PROGRESO IA EN VIVO Y MINIMAPA -->
+                                <!-- 1. EDITOR DE CÓDIGO CON PROGRESO Y CONFIRMACIÓN EN VIVO -->
                                 <Grid Grid.Row="0">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="32"/>   <!-- Pestañas de Archivos del Usuario y Acciones -->
-                                        <RowDefinition Height="24"/>   <!-- Ruta del Archivo y Contadores de Diferencias -->
-                                        <RowDefinition Height="Auto"/> <!-- Barra de Progreso de Edición IA en Tiempo Real -->
+                                        <RowDefinition Height="26"/>   <!-- Ruta del Archivo y Contadores de Diferencias -->
+                                        <RowDefinition Height="Auto"/> <!-- Barra de Progreso y Confirmación de Cambios IA -->
                                         <RowDefinition Height="*"/>    <!-- Superficie de Edición + Minimapa Dinámico -->
                                     </Grid.RowDefinitions>
 
@@ -316,7 +320,7 @@
                                             <!-- Barra de Acciones del Editor -->
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
                                                 <Button Content="⬡ Subir" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Subir e importar archivo(s) del usuario al editor"/>
-                                                <Button Content="+ Nuevo" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNewFile_Click" ToolTip="Crear un archivo nuevo en blanco o con plantilla"/>
+                                                <Button Content="+ Nuevo" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNewFile_Click" ToolTip="Crear un archivo nuevo en el espacio de trabajo"/>
                                                 <Button x:Name="BtnDiffModeToggle" Content="⇄ Diferencias: ACTIVO" Style="{StaticResource ToolbarMiniBtn}" Click="BtnToggleDiffView_Click" ToolTip="Mostrar u ocultar líneas añadidas en verde (+) y eliminadas en rojo (-)"/>
                                                 <Button Content="💾 Guardar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSaveFile_Click" ToolTip="Guardar cambios en disco (Ctrl+S)"/>
                                                 <Button Content="⚡ Remediación IA en Vivo" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" FontWeight="SemiBold" Click="BtnApplyPatch_Click" ToolTip="Aplicar refactorización y corrección de vulnerabilidades mostrando el progreso paso a paso en el editor"/>
@@ -324,14 +328,35 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- Barra de Ruta Léxica y Leyenda de Control de Cambios -->
-                                    <Border Grid.Row="1" Background="#0b0e14" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="12,0">
+                                    <!-- Barra de Ruta Léxica y Leyenda de Control de Cambios (SIN SOLAPAMIENTO) -->
+                                    <Border Grid.Row="1" Background="#0b0e14" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="10,0">
                                         <Grid>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock x:Name="TxtBreadcrumbPath" Text="Espacio de Trabajo › Sin archivo seleccionado" FontFamily="Segoe UI, Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}"/>
-                                                <TextBlock x:Name="TxtCursorPos" Text="   Lín 1, Col 1" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" Margin="12,0,0,0"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock x:Name="TxtBreadcrumbPath"
+                                                       Grid.Column="0"
+                                                       Text="Espacio de Trabajo › Sin archivo seleccionado"
+                                                       FontFamily="Segoe UI, Consolas"
+                                                       FontSize="11.5"
+                                                       Foreground="{StaticResource BrushTextSecondary}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="0,0,8,0"/>
+
+                                            <TextBlock x:Name="TxtCursorPos"
+                                                       Grid.Column="1"
+                                                       Text="Lín 1, Col 1"
+                                                       FontFamily="Consolas"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource BrushTextMuted}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0"/>
+
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Border Width="8" Height="8" CornerRadius="2" Background="{StaticResource BrushDiffAddedBar}" Margin="0,0,4,0"/>
                                                 <TextBlock x:Name="TxtAddedCount" Text="+0 añadidas" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAccentSage}" Margin="0,0,10,0"/>
                                                 <Border Width="8" Height="8" CornerRadius="2" Background="{StaticResource BrushDiffRemovedBar}" Margin="0,0,4,0"/>
@@ -340,39 +365,65 @@
                                         </Grid>
                                     </Border>
 
-                                    <!-- BARRA DE PROGRESO DE CAMBIOS DE LA IA EN EL EDITOR -->
+                                    <!-- BARRA DE PROGRESO Y CONFIRMACIÓN DE CAMBIOS EN EL EDITOR -->
                                     <Border x:Name="PanelProgresoEdicionIA"
                                             Grid.Row="2"
                                             Visibility="Collapsed"
                                             Background="#111926"
                                             BorderBrush="#2a4a7f"
                                             BorderThickness="0,0,0,1"
-                                            Padding="12,5">
+                                            Padding="10,6">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="5"/>
+                                                <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
-                                            <Grid Grid.Row="0" Margin="0,0,0,4">
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <Border Width="7" Height="7" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                                            <Grid Grid.Row="0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <Border x:Name="DotProgresoIA" Width="7" Height="7" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                     <TextBlock x:Name="TxtFaseProgresoIA"
                                                                Text="Aplicando modificaciones del modelo de IA en el editor..."
                                                                FontFamily="Segoe UI, Consolas"
                                                                FontSize="11.5"
                                                                FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"
                                                                Foreground="{StaticResource BrushTextPrimary}"/>
                                                 </StackPanel>
+
                                                 <TextBlock x:Name="TxtPorcentajeProgresoIA"
+                                                           Grid.Column="1"
                                                            Text="0%"
                                                            FontFamily="Consolas"
                                                            FontSize="11.5"
                                                            FontWeight="Bold"
                                                            Foreground="{StaticResource BrushAccentSage}"
-                                                           HorizontalAlignment="Right"
-                                                           VerticalAlignment="Center"/>
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,10,0"/>
+
+                                                <!-- Botones de Confirmación o Reversión de Cambios -->
+                                                <StackPanel x:Name="PanelBotonesConfirmacion" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+                                                    <Button Content="✓ Confirmar y Guardar Cambios"
+                                                            Style="{StaticResource ToolbarMiniBtn}"
+                                                            Foreground="{StaticResource BrushAccentSage}"
+                                                            FontWeight="SemiBold"
+                                                            Click="BtnConfirmChanges_Click"
+                                                            ToolTip="Aceptar las modificaciones actuales como nueva versión confirmada del archivo"/>
+                                                    <Button Content="↺ Revertir al Original"
+                                                            Style="{StaticResource ToolbarMiniBtn}"
+                                                            Foreground="{StaticResource BrushDiffRemovedBar}"
+                                                            Click="BtnRevertChanges_Click"
+                                                            ToolTip="Descartar los cambios aplicados y restaurar el código anterior"/>
+                                                </StackPanel>
                                             </Grid>
-                                            <Grid Grid.Row="1" Background="#0b0e14" ClipToBounds="True">
+
+                                            <Grid x:Name="ContenedorBarraProgresoIA" Grid.Row="1" Height="4" Background="#0b0e14" Margin="0,5,0,0" ClipToBounds="True">
                                                 <Border x:Name="BarraProgresoEdicionIA"
                                                         HorizontalAlignment="Left"
                                                         Width="0"
@@ -401,11 +452,19 @@
                                                     <ColumnDefinition Width="*"/>  <!-- Capas de Resaltado Diff + Editor Interactivo -->
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Capa 0: Resaltado por Línea (Verde Añadido / Rojo Eliminado) -->
-                                                <StackPanel x:Name="DiffBackdropPanel" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,6,0,6" IsHitTestVisible="False"/>
+                                                <!-- Capa 0: Resaltado por Línea (Recortado para NUNCA estirar el ancho horizontal) -->
+                                                <StackPanel x:Name="DiffBackdropPanel"
+                                                            Grid.Column="0"
+                                                            Grid.ColumnSpan="2"
+                                                            Margin="0,6,0,6"
+                                                            ClipToBounds="True"
+                                                            IsHitTestVisible="False"/>
 
                                                 <!-- Capa 1: Numeración de Líneas e Indicadores +/-/! -->
-                                                <StackPanel x:Name="LineNumbersPanel" Grid.Column="0" Margin="0,6,0,6" IsHitTestVisible="False"/>
+                                                <StackPanel x:Name="LineNumbersPanel"
+                                                            Grid.Column="0"
+                                                            Margin="0,6,0,6"
+                                                            IsHitTestVisible="False"/>
 
                                                 <!-- Capa 2: Editor de Código Fuente Real -->
                                                 <TextBox x:Name="CodeEditorTextBox"
@@ -468,12 +527,16 @@
 
                                     <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="VulnHeader_Click">
                                         <Grid>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                                                 <TextBlock x:Name="TxtVulnChevron" Text="⌄ " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}"/>
-                                                <TextBlock Text="VULNERABILIDADES DEL ARCHIVO ACTIVO (SAST / CWE) Y CALIDAD (ISO/IEC 25010)" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
-                                                <TextBlock x:Name="TxtAstSummaryCount" Text="  (analizando...)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                                                <TextBlock Text="VULNERABILIDADES (SAST / CWE) Y CALIDAD (ISO 25010)" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                                <TextBlock x:Name="TxtAstSummaryCount" Text="  (analizando...)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Button Content="⚡ Corregir Todo en Vivo" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" Click="BtnApplyPatch_Click" ToolTip="Remedia todas las vulnerabilidades detectadas mostrando el progreso en el editor"/>
                                             </StackPanel>
                                         </Grid>
@@ -498,13 +561,17 @@
 
                                     <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="10,0">
                                         <Grid>
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                                                 <TextBlock x:Name="TxtHexChevron" Text="⌄ " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" MouseLeftButtonDown="HexHeader_Click" Cursor="Hand"/>
                                                 <Button x:Name="BtnTabAstMetrics" Content="Árbol Sintáctico (AST) y Métricas ISO" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="SemiBold" Click="BtnTabAstMetrics_Click"/>
                                                 <Button x:Name="BtnTabHexView" Content="Inspección Hexadecimal (UTF-8)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnTabHexView_Click"/>
                                                 <TextBlock x:Name="TxtHexByteCount" Text="  (0 bytes)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Button Content="Copiar Volcado Hex" Style="{StaticResource ToolbarMiniBtn}" Click="BtnCopyHex_Click"/>
                                             </StackPanel>
                                         </Grid>
@@ -563,19 +630,18 @@
                                 <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <Border Grid.Column="0" Background="{StaticResource BrushBgPane}" BorderBrush="{StaticResource BrushAccentBlue}" BorderThickness="0,2,1,0" Padding="12,0">
+                                        <Border Grid.Column="0" Background="{StaticResource BrushBgPane}" BorderBrush="{StaticResource BrushAccentBlue}" BorderThickness="0,2,1,0" Padding="12,0" HorizontalAlignment="Left">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Border x:Name="DotAiConnection" Width="7" Height="7" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" Margin="0,0,7,0"/>
-                                                <TextBlock Text="Asistente de Ingeniería de Software y Ciberseguridad (IA Local)" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                                <TextBlock Text="Asistente de Ingeniería de Software y Ciberseguridad (IA Local)" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                         </Border>
 
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                                             <Button x:Name="BtnInstallOrCheckAi" Content="⚡ Motor IA Local" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" Click="BtnInstallOrCheckAi_Click" ToolTip="Verificar conexión o instalar modelo local Qwen 2.5 Coder 7B"/>
                                             <Button Content="⊞ Especialidades" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavSkills_Click" ToolTip="Configurar especialidades técnicas activas"/>
                                             <Button Content="Limpiar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnClearChat_Click" ToolTip="Limpiar historial de consultas"/>
@@ -583,15 +649,29 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Barra de Compresión de Contexto y Prevención de Alucinaciones -->
+                                <!-- Barra de Compresión de Contexto y Prevención de Alucinaciones (SIN SOLAPAMIENTO) -->
                                 <Border Grid.Row="1" Background="#0b0e14" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="10,0">
                                     <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="TxtSkillRouterStatus"
+                                                   Grid.Column="0"
                                                    Text="⚡ Enrutador Técnico: 8 Especialidades Activas  ·  Anclaje AST: ACTIVO"
-                                                   FontFamily="Segoe UI, Consolas" FontSize="11" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                                                   FontFamily="Segoe UI, Consolas"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource BrushTextSecondary}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,10,0"/>
                                         <TextBlock x:Name="TxtTokenSavingsBadge"
-                                                   Text="Ahorro de Contexto: ~78% (Modo Cero Alucinaciones)"
-                                                   FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAccentSage}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                   Grid.Column="1"
+                                                   Text="Ahorro: ~78% tokens"
+                                                   FontFamily="Consolas"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource BrushAccentSage}"
+                                                   VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
 
@@ -605,7 +685,7 @@
                                     <WrapPanel Orientation="Horizontal">
                                         <Button Content="🎨 Diseño UI/UX (WCAG 2.2)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillUiUx_Click" ToolTip="Especialidad: Sistemas de Diseño e Interfaces Accesibles WCAG 2.2"/>
                                         <Button Content="⚙ Arquitectura Backend (Clean)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillBackend_Click" ToolTip="Especialidad: Arquitectura Limpia, SOLID y APIs REST/gRPC"/>
-                                        <Button Content="🗄 Base de Datos y SQL (3FN)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillDatabase_Click" ToolTip="Especialidad: Modelado Relacional 3FN, Índices B-Tree y Consultas Parametrizadas"/>
+                                        <Button Content="🗄 Optimizar SQL Activo (3FN)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillDatabase_Click" ToolTip="Especialidad: Analizar y optimizar el archivo SQL o modelo de datos activo en el editor"/>
                                         <Button Content="📋 Requisitos (ISO 29148)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillRequirements_Click" ToolTip="Especialidad: Ingeniería de Requisitos ISO/IEC/IEEE 29148 y Sintaxis EARS"/>
                                         <Button Content="🏅 Calidad (ISO 25010 / 27001)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillIsoQuality_Click" ToolTip="Especialidad: Evaluación de Calidad de Software ISO/IEC 25010 y Controles ISO 27001"/>
                                         <Button Content="🧪 Pruebas Unitarias (BVA)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillTesting_Click" ToolTip="Especialidad: Verificación y Análisis de Valores Límite (BVA)"/>

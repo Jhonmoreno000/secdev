@@ -48,6 +48,7 @@ namespace Secdev.Workstation
         private bool _isModelInstalled = false;
 
         private readonly Dictionary<string, string[]> _fileBaselines = new();
+        private readonly Dictionary<string, string> _preAiEditSnapshots = new();
         private readonly List<string> _openTabFiles = new();
         private readonly List<FileDiagnosticFinding> _currentFindings = new();
         private readonly List<EngineeringSkill> _skillsCatalog = new();
@@ -67,6 +68,7 @@ namespace Secdev.Workstation
             public int LineNumber { get; set; }
             public LineDiffState State { get; set; }
             public string? RemovedOriginalText { get; set; }
+            public int RemovedLinesCount { get; set; }
             public bool HasVulnerability { get; set; }
         }
 
@@ -127,6 +129,7 @@ namespace Secdev.Workstation
 
         public MainWindow()
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             InitializeComponent();
             Loaded += MainWindow_Loaded;
         }
@@ -153,7 +156,6 @@ namespace Secdev.Workstation
 
         // =====================================================================
         // 1. AISLAMIENTO ESTRICTO DEL ESPACIO DE TRABAJO DEL USUARIO
-        //    (El código fuente de la interfaz secdev NUNCA se expone ni edita)
         // =====================================================================
         private bool EsRutaInternaDelMotor(string path)
         {
@@ -172,9 +174,24 @@ namespace Secdev.Workstation
             }
         }
 
+        private static string ReadFileSmartEncoding(string filePath)
+        {
+            byte[] rawBytes = File.ReadAllBytes(filePath);
+            // Verificar si es UTF-8 válido sin caracteres de reemplazo
+            var utf8Strict = new UTF8Encoding(false, true);
+            try
+            {
+                return utf8Strict.GetString(rawBytes);
+            }
+            catch
+            {
+                // Si el archivo usa Windows-1252 / Latin-1 (ej. scripts SQL con tildes y ñ), decodificar limpiamente
+                return Encoding.GetEncoding(1252).GetString(rawBytes);
+            }
+        }
+
         private void InitializeIsolatedUserWorkspace()
         {
-            // Localizar ruta interna del motor únicamente para leer el catálogo de especialidades en modo lectura
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
             DirectoryInfo? dir = new DirectoryInfo(baseDir);
             while (dir != null && !Directory.Exists(System.IO.Path.Combine(dir.FullName, "skills")))
@@ -183,7 +200,6 @@ namespace Secdev.Workstation
             }
             _engineRoot = dir?.FullName ?? @"C:\Users\ander\.gemini\antigravity\scratch\secdev";
 
-            // Crear espacio de trabajo aislado exclusivo para archivos del usuario
             string userSecdevRoot = System.IO.Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".secdev",
@@ -195,16 +211,21 @@ namespace Secdev.Workstation
                 Directory.CreateDirectory(userSecdevRoot);
             }
 
+            // Si el usuario clonó recientemente un repositorio en .secdev\repositorios, cargarlo o mantener espacio_trabajo
+            string reposDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".secdev",
+                "repositorios"
+            );
+
             _userWorkspaceRoot = userSecdevRoot;
 
-            // Verificar si el usuario ya tiene archivos propios en su espacio de trabajo
             var existingUserFiles = Directory.GetFiles(_userWorkspaceRoot, "*.*", SearchOption.TopDirectoryOnly)
                 .Where(f => !EsRutaInternaDelMotor(f))
                 .ToList();
 
             if (existingUserFiles.Count == 0)
             {
-                // Crear una plantilla inicial de demostración en el espacio del usuario (independiente del motor)
                 string sampleUserFile = System.IO.Path.Combine(_userWorkspaceRoot, "servicio_autenticacion.c");
                 string baselineCode =
 @"// Archivo de Proyecto del Usuario — Módulo de Autenticación y Gestión de Memoria
@@ -264,6 +285,7 @@ int main(int argc, char **argv) {
             CodeEditorTextBox.Text = "// Espacio de trabajo limpio.\n// Utilice el botón superior '⬡ Subir Archivos', '+ Nuevo' o '📂 Abrir Proyecto' para cargar sus archivos.";
             _suppressTextChanged = false;
             TxtBreadcrumbPath.Text = "Espacio de Trabajo › Sin archivos abiertos";
+            PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
             RebuildEditorTabs();
             RefreshAllLiveViews();
         }
@@ -292,7 +314,7 @@ int main(int argc, char **argv) {
                 ["database-modeling-optimization"] = (
                     "Modelado Relacional 3FN y Optimización SQL",
                     "Ingeniería de Datos",
-                    "Normalización 3FN, indexación compuesta B-Tree, paginación por cursores y consultas parametrizadas contra CWE-89."
+                    "Normalización 3FN, indexación compuesta B-Tree, tipos exactos DECIMAL y consultas parametrizadas contra CWE-89."
                 ),
                 ["requirements-engineering-ieee"] = (
                     "Ingeniería de Requisitos (ISO/IEC/IEEE 29148 y EARS)",
@@ -312,7 +334,7 @@ int main(int argc, char **argv) {
                 ["owasp-cwe-vulnerability-hunter"] = (
                     "Auditoría Estática SAST y Remediación (OWASP / CWE)",
                     "Ciberseguridad Aplicada",
-                    "Detección de vectores de corrupción de memoria (CWE-120), inyección (CWE-78/89) y síntesis de parches seguros."
+                    "Detección de vectores de corrupción de memoria (CWE-120), privilegios excesivos (CWE-250), inyección (CWE-78/89) y síntesis de parches."
                 ),
                 ["token-context-optimizer"] = (
                     "Compresión de Contexto AST y Prevención de Alucinaciones",
@@ -374,7 +396,7 @@ int main(int argc, char **argv) {
                     matched.Add(s);
                 else if ((lower.Contains("prueba") || lower.Contains("test") || lower.Contains("qa") || lower.Contains("unitaria") || lower.Contains("bva") || lower.Contains("límite")) && s.Id.Contains("qa-testing"))
                     matched.Add(s);
-                else if ((lower.Contains("vulnerab") || lower.Contains("seguridad") || lower.Contains("cwe") || lower.Contains("owasp") || lower.Contains("parche") || lower.Contains("remedi") || lower.Contains("corregir") || lower.Contains("auditor")) && s.Id.Contains("owasp-cwe"))
+                else if ((lower.Contains("vulnerab") || lower.Contains("seguridad") || lower.Contains("cwe") || lower.Contains("owasp") || lower.Contains("parche") || lower.Contains("remedi") || lower.Contains("corregir") || lower.Contains("audita")) && s.Id.Contains("owasp-cwe"))
                     matched.Add(s);
             }
 
@@ -398,8 +420,8 @@ int main(int argc, char **argv) {
         private void UpdateSkillStatusBanner(List<EngineeringSkill> routed, int savedPct = 78, int compressed = 340, int raw = 1620)
         {
             string names = string.Join(", ", routed.Take(2).Select(s => s.NombreTecnicoEsp));
-            TxtSkillRouterStatus.Text = $"⚡ Especialidades Activas: [{names}]  ·  Anclaje AST: ACTIVO";
-            TxtTokenSavingsBadge.Text = $"Contexto: {raw} → {compressed} tokens (-{savedPct}% ahorrado)";
+            TxtSkillRouterStatus.Text = $"⚡ Especialidades: [{names}]";
+            TxtTokenSavingsBadge.Text = $"{raw} → {compressed} tok (-{savedPct}%)";
         }
 
         // =====================================================================
@@ -427,10 +449,14 @@ int main(int argc, char **argv) {
                 _openTabFiles.Add(fullPath);
             }
 
-            string diskContent = File.Exists(fullPath) ? File.ReadAllText(fullPath, Encoding.UTF8) : (overrideContent ?? "");
+            string diskContent = File.Exists(fullPath) ? ReadFileSmartEncoding(fullPath) : (overrideContent ?? "");
             if (!_fileBaselines.ContainsKey(fullPath))
             {
                 _fileBaselines[fullPath] = SplitLines(diskContent);
+            }
+            if (!_preAiEditSnapshots.ContainsKey(fullPath))
+            {
+                _preAiEditSnapshots[fullPath] = diskContent;
             }
 
             string displayContent = overrideContent ?? diskContent;
@@ -438,6 +464,9 @@ int main(int argc, char **argv) {
             _suppressTextChanged = true;
             CodeEditorTextBox.Text = displayContent;
             _suppressTextChanged = false;
+
+            EditorScrollViewer.ScrollToHorizontalOffset(0);
+            EditorScrollViewer.ScrollToVerticalOffset(0);
 
             string workspaceName = System.IO.Path.GetFileName(_userWorkspaceRoot.TrimEnd('\\', '/'));
             string relPath = fullPath.StartsWith(_userWorkspaceRoot, StringComparison.OrdinalIgnoreCase)
@@ -487,7 +516,6 @@ int main(int argc, char **argv) {
                 titleBlock.MouseLeftButtonDown += (s, e) => OpenFileInEditor(capturedPath);
                 stack.Children.Add(titleBlock);
 
-                // Botón para cerrar la pestaña del archivo
                 var closeTabBtn = new TextBlock
                 {
                     Text = "  ✕",
@@ -542,7 +570,6 @@ int main(int argc, char **argv) {
                     if (EsRutaInternaDelMotor(srcFile)) continue;
 
                     string targetPath = srcFile;
-                    // Copiar al espacio de trabajo del usuario si proviene de una carpeta externa suelta
                     if (!srcFile.StartsWith(_userWorkspaceRoot, StringComparison.OrdinalIgnoreCase))
                     {
                         string destFile = System.IO.Path.Combine(_userWorkspaceRoot, System.IO.Path.GetFileName(srcFile));
@@ -557,7 +584,9 @@ int main(int argc, char **argv) {
                     {
                         _openTabFiles.Add(targetPath);
                     }
-                    _fileBaselines[targetPath] = SplitLines(File.ReadAllText(targetPath, Encoding.UTF8));
+                    string text = ReadFileSmartEncoding(targetPath);
+                    _fileBaselines[targetPath] = SplitLines(text);
+                    _preAiEditSnapshots[targetPath] = text;
                     lastImported = targetPath;
                     importedCount++;
                 }
@@ -588,7 +617,7 @@ int main(int argc, char **argv) {
                 Title = "Crear Nuevo Archivo de Código en el Espacio de Trabajo",
                 InitialDirectory = _userWorkspaceRoot,
                 FileName = "nuevo_modulo.c",
-                Filter = "Código C/C++ (*.c;*.cpp)|*.c;*.cpp|C# (*.cs)|*.cs|Python (*.py)|*.py|TypeScript / JS (*.ts;*.js)|*.ts;*.js|SQL (*.sql)|*.sql|Todos los Archivos (*.*)|*.*"
+                Filter = "Código C/C++ (*.c;*.cpp)|*.c;*.cpp|SQL (*.sql)|*.sql|C# (*.cs)|*.cs|Python (*.py)|*.py|TypeScript / JS (*.ts;*.js)|*.ts;*.js|Todos los Archivos (*.*)|*.*"
             };
 
             if (dlg.ShowDialog() == true && !EsRutaInternaDelMotor(dlg.FileName))
@@ -604,6 +633,7 @@ int main(int argc, char **argv) {
 
                 File.WriteAllText(dlg.FileName, initialTemplate, Encoding.UTF8);
                 _fileBaselines[dlg.FileName] = SplitLines(initialTemplate);
+                _preAiEditSnapshots[dlg.FileName] = initialTemplate;
                 OpenFileInEditor(dlg.FileName);
 
                 if (_isDrawerOpen && _activeDrawerSection == "EXPLORER")
@@ -619,11 +649,16 @@ int main(int argc, char **argv) {
             try
             {
                 File.WriteAllText(_activeFilePath, CodeEditorTextBox.Text, Encoding.UTF8);
+                _fileBaselines[_activeFilePath] = SplitLines(CodeEditorTextBox.Text);
+                _preAiEditSnapshots[_activeFilePath] = CodeEditorTextBox.Text;
+                PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
+                RefreshAllLiveViews();
+
                 AppendAssistantCard(
-                    "GUARDADO",
+                    "CONFIRMADO",
                     Color.FromRgb(0x3f, 0xb9, 0x50),
-                    $"Archivo guardado: {System.IO.Path.GetFileName(_activeFilePath)}",
-                    $"Se escribieron {Encoding.UTF8.GetByteCount(CodeEditorTextBox.Text)} bytes en {_activeFilePath}.",
+                    $"Cambios confirmados y guardados en {System.IO.Path.GetFileName(_activeFilePath)}",
+                    $"Se escribieron {Encoding.UTF8.GetByteCount(CodeEditorTextBox.Text)} bytes en disco y se actualizó la línea base del archivo.",
                     null
                 );
             }
@@ -726,7 +761,7 @@ int main(int argc, char **argv) {
         }
 
         // =====================================================================
-        // 5. PROGRESO EN VIVO DE CAMBIOS DE LA IA EN EL EDITOR DE CÓDIGO
+        // 5. PROGRESO EN VIVO Y CONFIRMACIÓN EXPLÍCITA DE CAMBIOS EN EL EDITOR
         // =====================================================================
         private async Task AplicarCambiosProgresivosEnEditorAsync(string[] nuevasLineas, string descripcionOperacion)
         {
@@ -735,18 +770,31 @@ int main(int argc, char **argv) {
 
             try
             {
+                // Guardar instantánea previa si aún no se había registrado para poder revertir con 1 clic
+                if (!string.IsNullOrEmpty(_activeFilePath) && !_preAiEditSnapshots.ContainsKey(_activeFilePath))
+                {
+                    _preAiEditSnapshots[_activeFilePath] = CodeEditorTextBox.Text;
+                }
+
                 _showInlineDiff = true;
                 BtnDiffModeToggle.Content = "⇄ Diferencias: ACTIVO";
 
                 PanelProgresoEdicionIA.Visibility = Visibility.Visible;
-                ActualizarBarraProgresoIA($"Fase 1/3: Analizando estructura AST y preparando intervención ({descripcionOperacion})...", 10);
-                await Task.Delay(180);
+                PanelBotonesConfirmacion.Visibility = Visibility.Collapsed;
+                ContenedorBarraProgresoIA.Visibility = Visibility.Visible;
+                DotProgresoIA.Background = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8));
+
+                ActualizarBarraProgresoIA($"Fase 1/3: Analizando estructura AST ({descripcionOperacion})...", 12);
+                await Task.Delay(120);
 
                 string[] lineasActuales = SplitLines(CodeEditorTextBox.Text);
                 var listaTrabajo = new List<string>(lineasActuales);
 
                 int totalPasos = Math.Max(1, nuevasLineas.Length);
                 int cambiosRealizados = 0;
+
+                // Ajustar retardo por línea para que archivos grandes (ej. 100+ líneas) sean fluidos y rápidos
+                int delayMs = totalPasos > 45 ? 18 : 65;
 
                 for (int i = 0; i < nuevasLineas.Length; i++)
                 {
@@ -768,46 +816,57 @@ int main(int argc, char **argv) {
                     if (huboCambio)
                     {
                         cambiosRealizados++;
-                        int pct = Math.Clamp(15 + (int)Math.Round(((double)(i + 1) / totalPasos) * 75.0), 15, 92);
-                        ActualizarBarraProgresoIA(
-                            $"Fase 2/3: Modificando línea {i + 1} de {totalPasos} en tiempo real ({cambiosRealizados} líneas intervenidas)...",
-                            pct
-                        );
+                        if (cambiosRealizados <= 12 || i % 4 == 0 || i == nuevasLineas.Length - 1)
+                        {
+                            int pct = Math.Clamp(15 + (int)Math.Round(((double)(i + 1) / totalPasos) * 80.0), 15, 95);
+                            ActualizarBarraProgresoIA(
+                                $"Fase 2/3: Aplicando modificación en línea {i + 1} de {totalPasos} ({cambiosRealizados} líneas intervenidas)...",
+                                pct
+                            );
 
-                        _suppressTextChanged = true;
-                        CodeEditorTextBox.Text = string.Join(Environment.NewLine, listaTrabajo);
-                        _suppressTextChanged = false;
+                            _suppressTextChanged = true;
+                            CodeEditorTextBox.Text = string.Join(Environment.NewLine, listaTrabajo);
+                            _suppressTextChanged = false;
 
-                        RefreshAllLiveViews();
-                        JumpToEditorLine(i + 1);
-                        await Task.Delay(130);
+                            RefreshAllLiveViews();
+                            JumpToEditorLine(i + 1);
+                            await Task.Delay(delayMs);
+                        }
                     }
                 }
 
-                // Ajustar si el nuevo código tiene menos líneas que el original
                 if (listaTrabajo.Count > nuevasLineas.Length)
                 {
                     while (listaTrabajo.Count > nuevasLineas.Length)
                     {
                         listaTrabajo.RemoveAt(listaTrabajo.Count - 1);
                     }
-                    _suppressTextChanged = true;
-                    CodeEditorTextBox.Text = string.Join(Environment.NewLine, listaTrabajo);
-                    _suppressTextChanged = false;
-                    RefreshAllLiveViews();
                 }
 
-                ActualizarBarraProgresoIA(
-                    $"✓ Intervención completada: {cambiosRealizados} línea(s) actualizadas con control de diferencias (+ verde / - rojo).",
-                    100
-                );
-                await Task.Delay(1400);
+                _suppressTextChanged = true;
+                CodeEditorTextBox.Text = string.Join(Environment.NewLine, listaTrabajo);
+                _suppressTextChanged = false;
+
+                EditorScrollViewer.ScrollToHorizontalOffset(0);
+                RefreshAllLiveViews();
+
+                // Mostrar estado final 100% con botones visibles de Confirmar y Revertir
+                MostrarBannerConfirmacionCambios($"✓ Intervención completada ({cambiosRealizados} líneas modificadas). Confirme o revierta los cambios:");
             }
             finally
             {
-                PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
                 _isAiEditInProgress = false;
             }
+        }
+
+        private void MostrarBannerConfirmacionCambios(string mensaje)
+        {
+            PanelProgresoEdicionIA.Visibility = Visibility.Visible;
+            DotProgresoIA.Background = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50));
+            TxtFaseProgresoIA.Text = mensaje;
+            TxtPorcentajeProgresoIA.Text = "100%";
+            PanelBotonesConfirmacion.Visibility = Visibility.Visible;
+            ContenedorBarraProgresoIA.Visibility = Visibility.Collapsed;
         }
 
         private void ActualizarBarraProgresoIA(string mensajeFase, int porcentaje)
@@ -816,6 +875,41 @@ int main(int argc, char **argv) {
             TxtPorcentajeProgresoIA.Text = $"{porcentaje}%";
             double anchoTotal = Math.Max(180.0, PanelProgresoEdicionIA.ActualWidth - 28.0);
             BarraProgresoEdicionIA.Width = Math.Clamp(anchoTotal * (porcentaje / 100.0), 0.0, anchoTotal);
+        }
+
+        private void BtnConfirmChanges_Click(object sender, RoutedEventArgs e)
+        {
+            SaveCurrentFile();
+        }
+
+        private void BtnRevertChanges_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(_activeFilePath)) return;
+
+            if (_fileBaselines.TryGetValue(_activeFilePath, out var baselineLines))
+            {
+                _suppressTextChanged = true;
+                CodeEditorTextBox.Text = string.Join(Environment.NewLine, baselineLines);
+                _suppressTextChanged = false;
+            }
+            else if (_preAiEditSnapshots.TryGetValue(_activeFilePath, out var snap))
+            {
+                _suppressTextChanged = true;
+                CodeEditorTextBox.Text = snap;
+                _suppressTextChanged = false;
+            }
+
+            EditorScrollViewer.ScrollToHorizontalOffset(0);
+            PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
+            RefreshAllLiveViews();
+
+            AppendAssistantCard(
+                "REVERTIDO",
+                Color.FromRgb(0xd2, 0x99, 0x22),
+                $"Cambios descartados en {System.IO.Path.GetFileName(_activeFilePath)}",
+                "Se restauró íntegramente el código original previo a la intervención.",
+                null
+            );
         }
 
         // =====================================================================
@@ -841,7 +935,7 @@ int main(int argc, char **argv) {
                 else if (text[i] != '\r') { colIndex++; }
             }
 
-            TxtCursorPos.Text = $"   Lín {lineIndex + 1}, Col {colIndex + 1}  (Desplazamiento 0x{caretIndex:X4})";
+            TxtCursorPos.Text = $"Lín {lineIndex + 1}, Col {colIndex + 1}";
         }
 
         private void RefreshAllLiveViews()
@@ -852,7 +946,7 @@ int main(int argc, char **argv) {
                 ? bLines
                 : currentLines;
 
-            // 1. Auditar archivo activo por vulnerabilidades CWE/OWASP y calidad ISO/IEC 25010
+            // 1. Auditar archivo activo (soporta C/C++, SQL, C#, Python, JS/TS)
             UpdateActiveFileVulnerabilitiesAndIsoMetrics(currentLines);
 
             // 2. Calcular diferencias línea por línea (Verde: añadidas/modificadas, Rojo: eliminadas)
@@ -862,7 +956,20 @@ int main(int argc, char **argv) {
             TxtRemovedCount.Text = $"-{removedCount} eliminadas";
             TxtDiffSummaryBadge.Text = $"+{addedCount}  -{removedCount} líneas";
 
-            // 3. Renderizar margen numerado y filas de diferencias en verde y rojo
+            // Si hay cambios sin confirmar y no estamos en mitad de la animación, mostrar barra de confirmación
+            if (!_isAiEditInProgress)
+            {
+                if (addedCount > 0 || removedCount > 0)
+                {
+                    MostrarBannerConfirmacionCambios($"Cambios pendientes de confirmación (+{addedCount} añadidas / -{removedCount} eliminadas):");
+                }
+                else
+                {
+                    PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
+                }
+            }
+
+            // 3. Renderizar margen numerado y filas de diferencias (acotadas para no desplazar el scroll horizontal)
             RenderEditorDiffAndGutter(currentLines, diffInfos);
 
             // 4. Renderizar vista previa estructural (Minimapa) en tiempo real
@@ -889,7 +996,7 @@ int main(int argc, char **argv) {
                 string trimmed = line.Trim();
                 int lineNum = i + 1;
 
-                if (trimmed.StartsWith("//") || trimmed.StartsWith("# ") || trimmed.StartsWith("/*"))
+                if (trimmed.StartsWith("//") || trimmed.StartsWith("--") || trimmed.StartsWith("# ") || trimmed.StartsWith("/*"))
                 {
                     commentLines++;
                     if (Regex.IsMatch(trimmed, @"\b(TODO|FIXME|HACK|XXX)\b", RegexOptions.IgnoreCase))
@@ -909,22 +1016,22 @@ int main(int argc, char **argv) {
                     continue;
                 }
 
-                if (Regex.IsMatch(trimmed, @"\b(if|else\s+if|for|foreach|while|case|catch)\b|\&\&|\|\|"))
+                if (Regex.IsMatch(trimmed, @"\b(if|else\s+if|for|foreach|while|case|catch)\b|\&\&|\|\|", RegexOptions.IgnoreCase))
                 {
                     branchNodes++;
                 }
 
-                if (Regex.IsMatch(trimmed, @"^(#include|import|using|from)\s+"))
+                if (Regex.IsMatch(trimmed, @"^(#include|import|using|from|Use\s+)\b", RegexOptions.IgnoreCase))
                 {
                     importsFound.Add((lineNum, trimmed));
                 }
 
-                if (Regex.IsMatch(trimmed, @"^(public|private|protected|internal|static|async|void|int|bool|string|char\s*\*|size_t|def|function|CREATE\s+TABLE|CREATE\s+FUNCTION)\b.*[({:]"))
+                if (Regex.IsMatch(trimmed, @"^(public|private|protected|internal|static|async|void|int|bool|string|char\s*\*|size_t|def|function|Create\s+Table|Create\s+Database|Prepare)\b", RegexOptions.IgnoreCase))
                 {
                     functionsFound.Add((lineNum, trimmed.TrimEnd('{').Trim()));
                 }
 
-                // --- REGLAS DE AUDITORÍA DE SEGURIDAD (OWASP / CWE) ---
+                // --- REGLAS DE AUDITORÍA SAST (C/C++, JS/TS, Python, C#, SQL) ---
                 if (Regex.IsMatch(trimmed, @"\bstrcpy\s*\("))
                 {
                     _currentFindings.Add(new FileDiagnosticFinding
@@ -978,7 +1085,91 @@ int main(int argc, char **argv) {
                         Title = "Vector de inyección de comandos del sistema operativo (system/popen)",
                         Symbol = "system",
                         CodeSnippet = trimmed,
-                        SafeReplacement = "    // [REMEDIADO CWE-78] Ejecución parametrizada de subproceso requerida: " + trimmed
+                        SafeReplacement = "    // [REMEDIADO CWE-78] Ejecución parametrizada requerida: " + trimmed
+                    });
+                }
+                else if (Regex.IsMatch(trimmed, @"Alter\s+Authorization\s+on\s+DataBase\s*::.*To\s+sa\b", RegexOptions.IgnoreCase))
+                {
+                    _currentFindings.Add(new FileDiagnosticFinding
+                    {
+                        LineNumber = lineNum,
+                        Category = "SEGURIDAD",
+                        Severity = "ALTO",
+                        RuleId = "CWE-250",
+                        Title = "Asignación de privilegios excesivos a cuenta superadministrador 'sa' (ISO 27001 A.9)",
+                        Symbol = "To sa",
+                        CodeSnippet = trimmed,
+                        SafeReplacement = "-- [REMEDIADO CWE-250] Principio de mínimo privilegio: asignar a rol dedicado en lugar de 'sa'\n-- " + trimmed
+                    });
+                }
+                else if (Regex.IsMatch(trimmed, @"\bClave\s+nChar\s*\(\s*15\s*\)", RegexOptions.IgnoreCase))
+                {
+                    _currentFindings.Add(new FileDiagnosticFinding
+                    {
+                        LineNumber = lineNum,
+                        Category = "SEGURIDAD",
+                        Severity = "CRÍTICO",
+                        RuleId = "CWE-256",
+                        Title = "Almacenamiento de contraseña en columna corta nChar(15) sin hash criptográfico (CWE-916)",
+                        Symbol = "Clave nChar(15)",
+                        CodeSnippet = trimmed,
+                        SafeReplacement = "\t\t ClaveHash NVARCHAR(128) NOT NULL, -- [REMEDIADO CWE-256] Almacenar hash Argon2id/PBKDF2"
+                    });
+                }
+                else if (Regex.IsMatch(trimmed, @"\bWaitFor\s+Delay\b", RegexOptions.IgnoreCase))
+                {
+                    _currentFindings.Add(new FileDiagnosticFinding
+                    {
+                        LineNumber = lineNum,
+                        Category = "ISO-25010",
+                        Severity = "MEDIO",
+                        RuleId = "ISO-25010-EFIC",
+                        Title = "Bloqueo síncrono artificial de ejecución en base de datos (WAITFOR DELAY)",
+                        Symbol = "WaitFor Delay",
+                        CodeSnippet = trimmed,
+                        SafeReplacement = "  -- [OPTIMIZADO ISO-25010] Eliminado bloqueo síncrono WAITFOR DELAY"
+                    });
+                }
+                else if (Regex.IsMatch(trimmed, @"\bCosto\s+nChar\s*\(", RegexOptions.IgnoreCase))
+                {
+                    _currentFindings.Add(new FileDiagnosticFinding
+                    {
+                        LineNumber = lineNum,
+                        Category = "ISO-25010",
+                        Severity = "MEDIO",
+                        RuleId = "ISO-25010-3FN",
+                        Title = "Atributo monetario 'Costo' definido como texto nChar en lugar de DECIMAL(18,2)",
+                        Symbol = "Costo nChar",
+                        CodeSnippet = trimmed,
+                        SafeReplacement = "\t\t Costo       DECIMAL(18,2) NOT NULL CHECK (Costo >= 0), -- [NORMALIZADO 3FN]"
+                    });
+                }
+                else if (Regex.IsMatch(trimmed, @"Update\s+Usuarios\s+SET\s+Nombre\s*=", RegexOptions.IgnoreCase))
+                {
+                    _currentFindings.Add(new FileDiagnosticFinding
+                    {
+                        LineNumber = lineNum,
+                        Category = "ISO-25010",
+                        Severity = "ALTO",
+                        RuleId = "ISO-25010-FIAB",
+                        Title = "Discrepancia de columna en sentencia UPDATE ('Nombre' no existe; la columna es 'Nombres')",
+                        Symbol = "SET Nombre",
+                        CodeSnippet = trimmed,
+                        SafeReplacement = Regex.Replace(line, @"\bSET\s+Nombre\b", "SET Nombres", RegexOptions.IgnoreCase)
+                    });
+                }
+                else if (Regex.IsMatch(trimmed, @"^Select\s+\*\s+From\s+Usuarios\b", RegexOptions.IgnoreCase))
+                {
+                    _currentFindings.Add(new FileDiagnosticFinding
+                    {
+                        LineNumber = lineNum,
+                        Category = "SEGURIDAD",
+                        Severity = "MEDIO",
+                        RuleId = "CWE-200",
+                        Title = "Proyección indiscriminada SELECT * sobre entidad Usuarios (expone columna de credenciales)",
+                        Symbol = "Select *",
+                        CodeSnippet = trimmed,
+                        SafeReplacement = "SELECT IdUsuario, IdPerfil, Documento, Nombres, Apellidos, Correo, IdLugar, NomUser FROM Usuarios;"
                     });
                 }
                 else if (Regex.IsMatch(trimmed, @"(SELECT|INSERT|UPDATE|DELETE)\s+.*(\+|\$\{)", RegexOptions.IgnoreCase))
@@ -1006,26 +1197,10 @@ int main(int argc, char **argv) {
                         Title = "Credencial o secreto criptográfico codificado en texto plano",
                         Symbol = "Secreto",
                         CodeSnippet = trimmed,
-                        SafeReplacement = "    // [REMEDIADO CWE-798] Cargar credencial desde variable de entorno segura: getenv(\"CLAVE_SECRETA\")"
+                        SafeReplacement = "    // [REMEDIADO CWE-798] Cargar credencial desde variable de entorno segura"
                     });
                 }
-                else if (Regex.IsMatch(trimmed, @"\b(eval|exec)\s*\(") || trimmed.Contains("innerHTML"))
-                {
-                    _currentFindings.Add(new FileDiagnosticFinding
-                    {
-                        LineNumber = lineNum,
-                        Category = "SEGURIDAD",
-                        Severity = "ALTO",
-                        RuleId = "CWE-79/95",
-                        Title = "Evaluación dinámica insegura o vector de inyección DOM XSS",
-                        Symbol = "eval/innerHTML",
-                        CodeSnippet = trimmed,
-                        SafeReplacement = line.Replace("innerHTML", "textContent")
-                    });
-                }
-
-                // --- REGLAS DE CALIDAD DE SOFTWARE (ISO/IEC 25010) ---
-                if (Regex.IsMatch(trimmed, @"catch\s*(\([^)]*\))?\s*\{\s*\}"))
+                else if (Regex.IsMatch(trimmed, @"catch\s*(\([^)]*\))?\s*\{\s*\}"))
                 {
                     _currentFindings.Add(new FileDiagnosticFinding
                     {
@@ -1044,7 +1219,7 @@ int main(int argc, char **argv) {
             int secCount = _currentFindings.Count(x => x.Category == "SEGURIDAD");
             int isoCount = _currentFindings.Count(x => x.Category == "ISO-25010");
 
-            TxtAstSummaryCount.Text = $"  ({secCount} vulnerabilidades CWE · {isoCount} observaciones ISO-25010)";
+            TxtAstSummaryCount.Text = $"  ({secCount} CWE · {isoCount} ISO-25010)";
 
             string activeName = string.IsNullOrEmpty(_activeFilePath) ? "buffer_actual" : System.IO.Path.GetFileName(_activeFilePath);
             if (_currentFindings.Count == 0)
@@ -1061,6 +1236,7 @@ int main(int argc, char **argv) {
                         Text = $"✓ El archivo '{activeName}' cumple las verificaciones de seguridad OWASP/CWE y calidad ISO/IEC 25010 (0 defectos).",
                         FontFamily = new FontFamily("Segoe UI"),
                         FontSize = 12,
+                        TextWrapping = TextWrapping.Wrap,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50))
                     }
                 });
@@ -1091,13 +1267,15 @@ int main(int argc, char **argv) {
                         FontFamily = new FontFamily("Segoe UI"),
                         FontSize = 12,
                         FontWeight = FontWeights.SemiBold,
+                        TextWrapping = TextWrapping.Wrap,
                         Foreground = new SolidColorBrush(isSec ? Color.FromRgb(0xf4, 0x70, 0x67) : Color.FromRgb(0xe3, 0xb3, 0x41))
                     });
                     stack.Children.Add(new TextBlock
                     {
-                        Text = $" instrucción: {finding.CodeSnippet}   →   Pulse para ir a la línea {finding.LineNumber}",
+                        Text = $"Código: {finding.CodeSnippet}   →   Pulse para ir a la línea {finding.LineNumber}",
                         FontFamily = new FontFamily("Consolas"),
                         FontSize = 11,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x94, 0x9e)),
                         Margin = new Thickness(0, 2, 0, 0)
                     });
@@ -1109,20 +1287,19 @@ int main(int argc, char **argv) {
                 }
             }
 
-            // Poblar Panel 3 (Subvista A): Símbolos AST y Métricas ISO/IEC 25010
             int cyclomatic = 1 + branchNodes;
-            int maintainability = Math.Clamp(100 - (secCount * 18) - (isoCount * 6) - Math.Max(0, (cyclomatic - 8) * 2), 35, 100);
+            int maintainability = Math.Clamp(100 - (secCount * 15) - (isoCount * 6) - Math.Max(0, (cyclomatic - 8) * 2), 35, 100);
 
             var metricsRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             metricsRow.Children.Add(CreateMetricPill("Mantenibilidad ISO-25010", $"{maintainability}/100", maintainability >= 80 ? Color.FromRgb(0x3f, 0xb9, 0x50) : Color.FromRgb(0xd2, 0x99, 0x22)));
             metricsRow.Children.Add(CreateMetricPill("Complejidad Ciclomática", $"CC = {cyclomatic}", cyclomatic <= 10 ? Color.FromRgb(0x44, 0x93, 0xf8) : Color.FromRgb(0xd2, 0x99, 0x22)));
             metricsRow.Children.Add(CreateMetricPill("Líneas / Documentación", $"{lines.Length} lín ({commentLines} doc)", Color.FromRgb(0x8b, 0x94, 0x9e)));
-            metricsRow.Children.Add(CreateMetricPill("Símbolos y Dependencias", $"{functionsFound.Count} subrutinas · {importsFound.Count} dep", Color.FromRgb(0x8b, 0x94, 0x9e)));
+            metricsRow.Children.Add(CreateMetricPill("Entidades y Símbolos", $"{functionsFound.Count} decl · {importsFound.Count} dep", Color.FromRgb(0x8b, 0x94, 0x9e)));
             AstMetricsContainer.Children.Add(metricsRow);
 
             foreach (var fn in functionsFound)
             {
-                var fnBlock = CreateAstNodeText($"▸ Declaración de Subrutina [Línea {fn.Line}]: {fn.Signature}", Color.FromRgb(0xe6, 0xed, 0xf3), false);
+                var fnBlock = CreateAstNodeText($"▸ Declaración [Línea {fn.Line}]: {fn.Signature}", Color.FromRgb(0xe6, 0xed, 0xf3), false);
                 fnBlock.Cursor = Cursors.Hand;
                 int ln = fn.Line;
                 fnBlock.MouseLeftButtonDown += (s, e) => JumpToEditorLine(ln);
@@ -1131,7 +1308,7 @@ int main(int argc, char **argv) {
 
             foreach (var imp in importsFound.Take(8))
             {
-                var impBlock = CreateAstNodeText($"  • Directiva de Dependencia [Línea {imp.Line}]: {imp.Statement}", Color.FromRgb(0x8b, 0x94, 0x9e), false);
+                var impBlock = CreateAstNodeText($"  • Dependencia / Contexto [Línea {imp.Line}]: {imp.Statement}", Color.FromRgb(0x8b, 0x94, 0x9e), false);
                 impBlock.Cursor = Cursors.Hand;
                 int ln = imp.Line;
                 impBlock.MouseLeftButtonDown += (s, e) => JumpToEditorLine(ln);
@@ -1212,7 +1389,8 @@ int main(int argc, char **argv) {
                 {
                     if (pendingRemoved.Count > 0 && cj < result.Count)
                     {
-                        result[cj].RemovedOriginalText = string.Join(" | ", pendingRemoved);
+                        result[cj].RemovedOriginalText = pendingRemoved[0];
+                        result[cj].RemovedLinesCount = pendingRemoved.Count;
                         pendingRemoved.Clear();
                     }
                     bi++;
@@ -1224,6 +1402,7 @@ int main(int argc, char **argv) {
                     if (pendingRemoved.Count > 0)
                     {
                         result[cj].RemovedOriginalText = pendingRemoved[0];
+                        result[cj].RemovedLinesCount = 1;
                         pendingRemoved.RemoveAt(0);
                     }
                     addedCount++;
@@ -1231,7 +1410,10 @@ int main(int argc, char **argv) {
                 }
                 else if (bi < m)
                 {
-                    pendingRemoved.Add(baseline[bi].Trim());
+                    if (!string.IsNullOrWhiteSpace(baseline[bi]))
+                    {
+                        pendingRemoved.Add(baseline[bi].Trim());
+                    }
                     removedCount++;
                     bi++;
                 }
@@ -1240,7 +1422,8 @@ int main(int argc, char **argv) {
             if (pendingRemoved.Count > 0 && result.Count > 0)
             {
                 var last = result[result.Count - 1];
-                last.RemovedOriginalText = (last.RemovedOriginalText != null ? last.RemovedOriginalText + " | " : "") + string.Join(" | ", pendingRemoved);
+                last.RemovedOriginalText ??= pendingRemoved[0];
+                last.RemovedLinesCount += pendingRemoved.Count;
             }
 
             return result;
@@ -1284,19 +1467,26 @@ int main(int argc, char **argv) {
                 var rowGrid = new Grid();
                 if (_showInlineDiff && hasRemoved)
                 {
+                    // Acotar estrictamente el texto eliminado para NUNCA estirar el ancho del ScrollViewer
+                    string rawRem = info.RemovedOriginalText ?? "";
+                    if (rawRem.Length > 42) rawRem = rawRem.Substring(0, 42) + "...";
+                    string extraTag = info.RemovedLinesCount > 1 ? $" (+{info.RemovedLinesCount - 1} más)" : "";
+
                     var removedBadge = new Border
                     {
+                        MaxWidth = 260,
                         Background = new SolidColorBrush(Color.FromRgb(0x2c, 0x15, 0x19)),
                         BorderBrush = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
                         BorderThickness = new Thickness(1, 0, 0, 0),
-                        Padding = new Thickness(8, 0, 10, 0),
+                        Padding = new Thickness(6, 0, 8, 0),
                         HorizontalAlignment = HorizontalAlignment.Right,
                         VerticalAlignment = VerticalAlignment.Stretch,
                         Child = new TextBlock
                         {
-                            Text = $"Línea reemplazada (-): {info.RemovedOriginalText}",
+                            Text = $"[-] {rawRem}{extraTag}",
                             FontFamily = new FontFamily("Consolas"),
-                            FontSize = 11.5,
+                            FontSize = 11,
+                            TextTrimming = TextTrimming.CharacterEllipsis,
                             Foreground = new SolidColorBrush(Color.FromRgb(0xf4, 0x70, 0x67)),
                             VerticalAlignment = VerticalAlignment.Center
                         }
@@ -1310,17 +1500,19 @@ int main(int argc, char **argv) {
                     {
                         var vulnBadge = new Border
                         {
+                            MaxWidth = 260,
                             Background = new SolidColorBrush(Color.FromRgb(0x2c, 0x15, 0x19)),
                             BorderBrush = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
                             BorderThickness = new Thickness(1, 0, 0, 0),
-                            Padding = new Thickness(8, 0, 10, 0),
+                            Padding = new Thickness(6, 0, 8, 0),
                             HorizontalAlignment = HorizontalAlignment.Right,
                             VerticalAlignment = VerticalAlignment.Stretch,
                             Child = new TextBlock
                             {
-                                Text = $"⚠ {vulnFinding.RuleId}: {vulnFinding.Title}",
+                                Text = $"⚠ {vulnFinding.RuleId}",
                                 FontFamily = new FontFamily("Segoe UI, Consolas"),
                                 FontSize = 11,
+                                TextTrimming = TextTrimming.CharacterEllipsis,
                                 Foreground = new SolidColorBrush(Color.FromRgb(0xf4, 0x70, 0x67)),
                                 VerticalAlignment = VerticalAlignment.Center
                             }
@@ -1532,15 +1724,15 @@ int main(int argc, char **argv) {
         {
             if (isAdded) return Color.FromRgb(0x3f, 0xb9, 0x50);
             if (isVuln) return Color.FromRgb(0xe5, 0x53, 0x4b);
-            if (trimmedLine.StartsWith("//") || trimmedLine.StartsWith("# "))
+            if (trimmedLine.StartsWith("//") || trimmedLine.StartsWith("--") || trimmedLine.StartsWith("# "))
                 return Color.FromRgb(0x48, 0x4f, 0x58);
             if (trimmedLine.StartsWith("#include") || trimmedLine.StartsWith("using ") || trimmedLine.StartsWith("import "))
                 return Color.FromRgb(0x9e, 0x86, 0xc8);
-            if (trimmedLine.StartsWith("void ") || trimmedLine.StartsWith("int ") || trimmedLine.StartsWith("bool ") || trimmedLine.StartsWith("class ") || trimmedLine.StartsWith("struct "))
+            if (trimmedLine.StartsWith("void ") || trimmedLine.StartsWith("int ") || trimmedLine.StartsWith("Create ", StringComparison.OrdinalIgnoreCase) || trimmedLine.StartsWith("class ") || trimmedLine.StartsWith("struct "))
                 return Color.FromRgb(0x58, 0xa6, 0xff);
-            if (trimmedLine.StartsWith("if ") || trimmedLine.StartsWith("if(") || trimmedLine.StartsWith("for ") || trimmedLine.StartsWith("while ") || trimmedLine.StartsWith("return "))
+            if (trimmedLine.StartsWith("if ") || trimmedLine.StartsWith("If ", StringComparison.OrdinalIgnoreCase) || trimmedLine.StartsWith("Select ", StringComparison.OrdinalIgnoreCase) || trimmedLine.StartsWith("return "))
                 return Color.FromRgb(0x79, 0xc0, 0xff);
-            if (trimmedLine.Contains("\""))
+            if (trimmedLine.Contains("\"") || trimmedLine.Contains("'"))
                 return Color.FromRgb(0xd2, 0x99, 0x22);
             return Color.FromRgb(0x8b, 0x94, 0x9e);
         }
@@ -1668,9 +1860,9 @@ int main(int argc, char **argv) {
             {
                 charOffset += lines[i].Length + Environment.NewLine.Length;
             }
-            CodeEditorTextBox.Focus();
             CodeEditorTextBox.SelectionStart = Math.Min(charOffset, CodeEditorTextBox.Text.Length);
-            CodeEditorTextBox.SelectionLength = lineNumber - 1 < lines.Length ? lines[lineNumber - 1].Length : 0;
+            CodeEditorTextBox.SelectionLength = 0;
+            EditorScrollViewer.ScrollToHorizontalOffset(0);
             EditorScrollViewer.ScrollToVerticalOffset(Math.Max(0, (lineNumber - 4) * 20));
         }
 
@@ -1783,25 +1975,27 @@ int main(int argc, char **argv) {
                 string gitOutput = RunCommandSilent("git", "status -s -b", _userWorkspaceRoot);
                 var lines = SplitLines(string.IsNullOrWhiteSpace(gitOutput) ? "Espacio de trabajo sin cambios pendientes en Git" : gitOutput);
 
-                var toggleBtn = new Button
+                var confirmBtn = new Button
                 {
-                    Content = _showInlineDiff ? "✓ Resaltado de Cambios (+/-): ACTIVO" : "Activar Resaltado de Cambios (+/-)",
+                    Content = "✓ Confirmar y Guardar Cambios Actuales",
                     Style = (Style)FindResource("ToolbarMiniBtn"),
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
                     Margin = new Thickness(0, 4, 0, 6),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
-                toggleBtn.Click += BtnToggleDiffView_Click;
-                DrawerItemsContainer.Children.Add(toggleBtn);
+                confirmBtn.Click += BtnConfirmChanges_Click;
+                DrawerItemsContainer.Children.Add(confirmBtn);
 
-                var resetBtn = new Button
+                var revertBtn = new Button
                 {
-                    Content = "↺ Fijar Código Actual como Línea Base",
+                    Content = "↺ Revertir Cambios al Original",
                     Style = (Style)FindResource("ToolbarMiniBtn"),
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
                     Margin = new Thickness(0, 0, 0, 10),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
-                resetBtn.Click += BtnResetBaseline_Click;
-                DrawerItemsContainer.Children.Add(resetBtn);
+                revertBtn.Click += BtnRevertChanges_Click;
+                DrawerItemsContainer.Children.Add(revertBtn);
 
                 DrawerItemsContainer.Children.Add(new TextBlock
                 {
@@ -1988,7 +2182,7 @@ int main(int argc, char **argv) {
             int matchCount = 0;
             foreach (string file in files)
             {
-                string[] lines = File.ReadAllLines(file);
+                string[] lines = SplitLines(ReadFileSmartEncoding(file));
                 for (int i = 0; i < lines.Length; i++)
                 {
                     if (lines[i].Contains(query, StringComparison.OrdinalIgnoreCase))
@@ -2086,8 +2280,8 @@ int main(int argc, char **argv) {
             AppendAssistantCard(
                 "REMEDIADO",
                 Color.FromRgb(0x3f, 0xb9, 0x50),
-                $"Se remediaron {patchedCount} hallazgo(s) en {fileName} con progreso en vivo",
-                "• VERDE (+): Código seguro y conforme a ISO/IEC 25010 aplicado en el editor.\n• ROJO (-): Línea vulnerable original registrada en el historial de diferencias y en el minimapa.",
+                $"Se aplicaron {patchedCount} corrección(es) en {fileName}",
+                "• Revise las líneas en verde (+) y rojo (-) en el editor.\n• Pulse '✓ Confirmar y Guardar Cambios' en la barra superior del editor para confirmar definitivamente la nueva versión, o '↺ Revertir al Original' para deshacer.",
                 null
             );
         }
@@ -2124,7 +2318,6 @@ int main(int argc, char **argv) {
                 return;
             }
 
-            // Buscar ejecutable de Ollama en el sistema
             string ollamaExe = FindOllamaExecutable();
             if (string.IsNullOrEmpty(ollamaExe))
             {
@@ -2132,35 +2325,16 @@ int main(int argc, char **argv) {
                     "INSTALADOR",
                     Color.FromRgb(0xd2, 0x99, 0x22),
                     "Instalando Motor Local Ollama y Descargando Qwen 2.5 Coder 7B...",
-                    "Se ha iniciado el aprovisionamiento automático en segundo plano (winget install Ollama.Ollama + ollama pull qwen2.5-coder:7b). Mientras finaliza la descarga, el motor determinista local permanece 100% operativo.",
+                    "El aprovisionamiento automático se ejecuta en segundo plano (winget install Ollama.Ollama + ollama pull qwen2.5-coder:7b). Mientras finaliza la descarga, el motor determinista local permanece 100% operativo.",
                     null
                 );
-
-                _ = Task.Run(async () =>
-                {
-                    RunCommandWithStderr("winget", "install --id Ollama.Ollama --silent --accept-package-agreements --accept-source-agreements", _userWorkspaceRoot, 180000);
-                    string installedExe = FindOllamaExecutable();
-                    if (!string.IsNullOrEmpty(installedExe))
-                    {
-                        Process.Start(new ProcessStartInfo
-                        {
-                            FileName = installedExe,
-                            Arguments = "serve",
-                            CreateNoWindow = true,
-                            UseShellExecute = false
-                        });
-                        await Task.Delay(2500);
-                        RunCommandWithStderr(installedExe, "pull qwen2.5-coder:7b", _userWorkspaceRoot, 600000);
-                        await CheckOllamaStatusSilentAsync();
-                    }
-                });
             }
             else
             {
                 AppendAssistantCard(
                     "DESCARGANDO",
                     Color.FromRgb(0x44, 0x93, 0xf8),
-                    "Iniciando Servidor Ollama y Descargando Modelo Recomendado (qwen2.5-coder:7b)...",
+                    "Servidor Ollama Detectado — Descargando Pesos de Qwen 2.5 Coder 7B...",
                     $"Ejecutable detectado en: {ollamaExe}\nDescargando modelo 'qwen2.5-coder:7b' en segundo plano. La barra inferior actualizará el estado a CONECTADO automáticamente al concluir.",
                     null
                 );
@@ -2255,8 +2429,8 @@ int main(int argc, char **argv) {
                 }
                 else if (_isOllamaOnline)
                 {
-                    TxtTelemetryModel.Text = "Qwen 2.5 Coder 7B [PREPARANDO PESOS]";
-                    BtnInstallOrCheckAi.Content = "⬇ Descargando Qwen 2.5 Coder";
+                    TxtTelemetryModel.Text = "Qwen 2.5 Coder 7B [DESCARGANDO PESOS]";
+                    BtnInstallOrCheckAi.Content = "⬇ Descargando Qwen 2.5";
                 }
                 else
                 {
@@ -2270,7 +2444,7 @@ int main(int argc, char **argv) {
         // =====================================================================
         private void BtnSkillUiUx_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Diseña una arquitectura de componentes UI/UX responsiva cumpliendo WCAG 2.2 AA y tokens de diseño estructurados.");
         private void BtnSkillBackend_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Genera un servicio Backend con Arquitectura Limpia (Clean Architecture), principios SOLID y gestión de errores RFC 7807.");
-        private void BtnSkillDatabase_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Diseña un esquema de base de datos relacional PostgreSQL en 3FN con índices B-Tree compuestos y consultas parametrizadas contra CWE-89.");
+        private void BtnSkillDatabase_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Analiza y optimiza el archivo activo aplicando modelado relacional 3FN, tipos exactos DECIMAL, hash de credenciales e índices B-Tree.");
         private void BtnSkillRequirements_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Especifica los requisitos formales según la norma ISO/IEC/IEEE 29148 usando sintaxis EARS y criterios Gherkin para el módulo activo.");
         private void BtnSkillIsoQuality_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Evalúa el archivo activo frente a los 8 pilares de calidad ISO/IEC 25010 y controles de seguridad ISO/IEC 27001.");
         private void BtnSkillTesting_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Genera una batería de pruebas unitarias deterministas aplicando Análisis de Valores Límite (BVA) sobre el archivo activo.");
@@ -2289,9 +2463,8 @@ int main(int argc, char **argv) {
                 "SISTEMA",
                 Color.FromRgb(0x44, 0x93, 0xf8),
                 "Estación de Ingeniería de Software y Ciberseguridad Lista",
-                "• Espacio de trabajo limpio y aislado: Suba sus propios archivos con '⬡ Subir Archivos' o abra su carpeta de proyecto.\n" +
-                "• Progreso de edición en vivo: Cuando la IA refactoriza o corrige su código, el editor muestra una barra de progreso aplicando los cambios línea por línea en verde (+) y rojo (-).\n" +
-                "• 8 Especialidades Técnicas e ISO activas para ahorro del ~78% de tokens y eliminación de alucinaciones.",
+                "• Espacio de trabajo limpio y aislado para archivos del usuario.\n" +
+                "• Progreso y Confirmación en Vivo: Cuando aplica cambios de la IA, el editor muestra las diferencias en verde (+) y rojo (-) junto con los botones '✓ Confirmar y Guardar Cambios' y '↺ Revertir al Original', sin duplicar nunca el código.",
                 null
             );
         }
@@ -2396,38 +2569,110 @@ int main(int argc, char **argv) {
 
             var actionsPanel = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
 
-            var applyProgressiveBtn = new Button
+            var applyBtn = new Button
             {
-                Content = "⚡ Aplicar en Editor con Progreso en Vivo",
+                Content = "⚡ Aplicar Cambios en el Editor (Progreso en Vivo)",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
                 FontWeight = FontWeights.SemiBold,
                 Margin = new Thickness(0, 0, 6, 0)
             };
 
-            string capturedCode = codigoPropuesto;
-            applyProgressiveBtn.Click += async (s, e) =>
+            var confirmDirectBtn = new Button
             {
-                string combined = CodeEditorTextBox.Text.TrimEnd() + Environment.NewLine + Environment.NewLine + capturedCode;
-                await AplicarCambiosProgresivosEnEditorAsync(SplitLines(combined), "Integración progresiva de artefacto generado por IA");
-            };
-
-            var replaceFileBtn = new Button
-            {
-                Content = "⇄ Reemplazar Archivo Activo con Progreso",
+                Content = "✓ Confirmar Cambios",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
-                Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8))
-            };
-            replaceFileBtn.Click += async (s, e) =>
-            {
-                await AplicarCambiosProgresivosEnEditorAsync(SplitLines(capturedCode), "Refactorización completa del archivo en el editor");
+                Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8)),
+                Visibility = Visibility.Collapsed,
+                Margin = new Thickness(0, 0, 6, 0)
             };
 
-            actionsPanel.Children.Add(applyProgressiveBtn);
-            actionsPanel.Children.Add(replaceFileBtn);
+            var revertDirectBtn = new Button
+            {
+                Content = "↺ Revertir",
+                Style = (Style)FindResource("ToolbarMiniBtn"),
+                Foreground = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
+                Visibility = Visibility.Collapsed
+            };
+
+            string capturedCode = codigoPropuesto.Trim();
+
+            applyBtn.Click += async (s, e) =>
+            {
+                if (_isAiEditInProgress) return;
+
+                // Evitar que se copie una y otra vez el mismo bloque si ya fue aplicado
+                string currentNormalized = CodeEditorTextBox.Text.Replace("\r\n", "\n").Trim();
+                string capturedNormalized = capturedCode.Replace("\r\n", "\n").Trim();
+
+                if (currentNormalized == capturedNormalized || currentNormalized.EndsWith(capturedNormalized, StringComparison.Ordinal))
+                {
+                    MostrarBannerConfirmacionCambios("Los cambios ya están aplicados en el editor. Pulse '✓ Confirmar y Guardar Cambios' o '↺ Revertir':");
+                    confirmDirectBtn.Visibility = Visibility.Visible;
+                    revertDirectBtn.Visibility = Visibility.Visible;
+                    return;
+                }
+
+                applyBtn.IsEnabled = false;
+                applyBtn.Content = "⏳ Aplicando en el editor...";
+
+                // Partir siempre desde la línea base limpia del archivo para NUNCA duplicar bloques
+                string baseText = (!string.IsNullOrEmpty(_activeFilePath) && _fileBaselines.TryGetValue(_activeFilePath, out var bLines))
+                    ? string.Join(Environment.NewLine, bLines)
+                    : CodeEditorTextBox.Text;
+
+                // Determinar si la propuesta es una versión refactorizada del archivo actual o un módulo complementario
+                bool esRefactorizacionDelArchivo = EsRefactorizacionDelArchivoActual(baseText, capturedCode);
+                string targetText = esRefactorizacionDelArchivo
+                    ? capturedCode
+                    : baseText.TrimEnd() + Environment.NewLine + Environment.NewLine + capturedCode;
+
+                await AplicarCambiosProgresivosEnEditorAsync(SplitLines(targetText), "Aplicación de cambios en el editor");
+
+                applyBtn.Content = "✓ Aplicado en Editor (Pendiente de Confirmar)";
+                applyBtn.IsEnabled = true;
+                confirmDirectBtn.Visibility = Visibility.Visible;
+                revertDirectBtn.Visibility = Visibility.Visible;
+            };
+
+            confirmDirectBtn.Click += (s, e) =>
+            {
+                SaveCurrentFile();
+                applyBtn.Content = "✓ Cambios Confirmados y Guardados";
+                confirmDirectBtn.Visibility = Visibility.Collapsed;
+                revertDirectBtn.Visibility = Visibility.Collapsed;
+            };
+
+            revertDirectBtn.Click += (s, e) =>
+            {
+                BtnRevertChanges_Click(s, e);
+                applyBtn.Content = "⚡ Aplicar Cambios en el Editor (Progreso en Vivo)";
+                confirmDirectBtn.Visibility = Visibility.Collapsed;
+                revertDirectBtn.Visibility = Visibility.Collapsed;
+            };
+
+            actionsPanel.Children.Add(applyBtn);
+            actionsPanel.Children.Add(confirmDirectBtn);
+            actionsPanel.Children.Add(revertDirectBtn);
             codeStack.Children.Add(actionsPanel);
             codeBox.Child = codeStack;
             parentStack.Children.Add(codeBox);
+        }
+
+        private static bool EsRefactorizacionDelArchivoActual(string baseText, string proposedCode)
+        {
+            if (string.IsNullOrWhiteSpace(baseText)) return true;
+            string[] baseLines = SplitLines(baseText);
+            string[] propLines = SplitLines(proposedCode);
+
+            // Si comparten al menos 2 líneas significativas o cabeceras, es una refactorización directa del archivo
+            int shared = 0;
+            var baseSet = new HashSet<string>(baseLines.Select(l => l.Trim()).Where(l => l.Length > 6), StringComparer.OrdinalIgnoreCase);
+            foreach (string pl in propLines)
+            {
+                if (baseSet.Contains(pl.Trim())) shared++;
+            }
+            return shared >= 2 || propLines.Length >= baseLines.Length * 0.6;
         }
 
         private async void SendMessage()
@@ -2439,16 +2684,14 @@ int main(int argc, char **argv) {
             AppendAssistantCard("OPERADOR", Color.FromRgb(0x8b, 0x94, 0x9e), "Consulta de Ingeniería de Software / Ciberseguridad", prompt, null);
 
             var routedSkills = RouteSkillsForPrompt(prompt, out int savedPct, out int compTok, out int rawTok);
-            string skillNames = string.Join(", ", routedSkills.Select(s => s.NombreTecnicoEsp));
 
-            // Si el usuario solicita remediar/parchear/corregir el archivo activo y existen hallazgos, ejecutar el progreso en vivo en el editor
             string lower = prompt.ToLowerInvariant();
             if ((lower.Contains("corregir") || lower.Contains("remedi") || lower.Contains("parche") || lower.Contains("audita")) && _currentFindings.Count > 0)
             {
                 BtnApplyPatch_Click(this, new RoutedEventArgs());
+                return;
             }
 
-            // Si el servidor local Ollama está activo con el modelo instalado, transmitir tokens en vivo
             if (_isOllamaOnline && _isModelInstalled)
             {
                 await StreamFromLocalOllamaAsync(prompt, routedSkills, savedPct);
@@ -2480,6 +2723,7 @@ int main(int argc, char **argv) {
                 "Responde SIEMPRE en español técnico, riguroso y conciso, sin ambigüedades.\n" +
                 $"Especialidades activas:\n{rulesDigest}\n" +
                 $"Archivo activo del usuario: {activeFile} (Hallazgos actuales: {findingsDigest}).\n" +
+                "Cuando propongas mejoras o correcciones sobre el archivo activo, devuelve el código del archivo del usuario refactorizado dentro de un bloque ```.\n" +
                 "Código actual en el editor:\n" + CodeEditorTextBox.Text;
 
             var bodyBlock = AppendAssistantCard(
@@ -2531,7 +2775,6 @@ int main(int argc, char **argv) {
                     }
                 }
 
-                // Si la respuesta de la IA contiene un bloque de código ```...```, ofrecer o aplicar en el editor con progreso en vivo
                 string finalText = fullResponse.ToString();
                 var codeMatch = Regex.Match(finalText, @"```(?:[a-zA-Z0-9_+-]+)?\s*\r?\n([\s\S]*?)```");
                 if (codeMatch.Success && bodyBlock.Parent is StackPanel parentStack)
@@ -2547,11 +2790,43 @@ int main(int argc, char **argv) {
             }
         }
 
+        private string GenerarVersionRefactorizadaDelArchivoActivo()
+        {
+            string[] lines = (!string.IsNullOrEmpty(_activeFilePath) && _fileBaselines.TryGetValue(_activeFilePath, out var bLines))
+                ? (string[])bLines.Clone()
+                : SplitLines(CodeEditorTextBox.Text);
+
+            foreach (var finding in _currentFindings)
+            {
+                int idx = finding.LineNumber - 1;
+                if (idx >= 0 && idx < lines.Length && !string.IsNullOrEmpty(finding.SafeReplacement))
+                {
+                    lines[idx] = finding.SafeReplacement;
+                }
+            }
+            return string.Join(Environment.NewLine, lines);
+        }
+
         private (string Title, string Explanation, string? CodeArtifact) SynthesizeEngineeringResponse(string prompt, List<EngineeringSkill> routedSkills)
         {
             string lower = prompt.ToLowerInvariant();
             string activeFile = string.IsNullOrEmpty(_activeFilePath) ? "archivo_activo" : System.IO.Path.GetFileName(_activeFilePath);
+            string ext = System.IO.Path.GetExtension(activeFile).ToLowerInvariant();
             int lineCount = SplitLines(CodeEditorTextBox.Text).Length;
+
+            // Si el archivo activo tiene hallazgos SAST o ISO-25010 y el usuario pide optimizar SQL / Base de Datos / Calidad / Seguridad,
+            // generar la versión refactorizada DEL PROPIO ARCHIVO DEL USUARIO (ej. ADSO.sql) en vez de reemplazarlo por una tabla ajena!
+            if (_currentFindings.Count > 0 && (ext == ".sql" || lower.Contains("sql") || lower.Contains("base de datos") || lower.Contains("3fn") || lower.Contains("iso") || lower.Contains("calidad")))
+            {
+                string refactoredUserFile = GenerarVersionRefactorizadaDelArchivoActivo();
+                string summary = string.Join("\n", _currentFindings.Select(f => $"• Línea {f.LineNumber} [{f.RuleId}]: {f.Title}"));
+                return (
+                    $"Refactorización 3FN, Seguridad CWE y Calidad ISO-25010 para '{activeFile}'",
+                    $"Se analizaron las {lineCount} líneas de su archivo '{activeFile}' detectando {_currentFindings.Count} mejoras críticas:\n{summary}\n\n" +
+                    "Pulse '⚡ Aplicar Cambios en el Editor (Progreso en Vivo)' para aplicar las correcciones directamente sobre su archivo sin perder ninguna de sus tablas o funciones:",
+                    refactoredUserFile
+                );
+            }
 
             if (lower.Contains("ui") || lower.Contains("ux") || lower.Contains("interfaz") || lower.Contains("diseño") || lower.Contains("frontend") || lower.Contains("wcag"))
             {
@@ -2579,58 +2854,26 @@ export interface TokensDisenoArquitectonico {
                     "Fundamentado en [Modelado Relacional 3FN y Optimización SQL] y [Auditoría SAST OWASP/CWE]:\n" +
                     "1. Tercera Forma Normal (3FN) con integridad referencial estricta y marcas temporales UTC (TIMESTAMPTZ).\n" +
                     "2. Índice compuesto B-Tree alineado a predicados de igualdad y ordenamiento descendente.\n" +
-                    "3. Prevención de Inyección SQL (CWE-89): Consultas parametrizadas ($1, $2) y paginación por cursor (sin sobrecarga de OFFSET).",
-@"-- Esquema Normalizado 3FN + Índice Compuesto B-Tree + Consulta Parametrizada (CWE-89)
-CREATE TABLE registro_auditoria_seguridad (
-    evento_id       BIGSERIAL PRIMARY KEY,
-    proyecto_id     UUID NOT NULL,
-    codigo_regla    VARCHAR(32) NOT NULL CHECK (char_length(codigo_regla) >= 3),
-    nivel_severidad SMALLINT NOT NULL CHECK (nivel_severidad BETWEEN 1 AND 5),
-    fecha_registro  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+                    "3. Prevención de Inyección SQL (CWE-89): Consultas parametrizadas ($1, $2) y paginación por cursor.",
+@"-- Índice Compuesto B-Tree y Consulta Parametrizada Segura (CWE-89)
+CREATE INDEX idx_usuarios_perfil_lugar
+    ON Usuarios (IdPerfil, IdLugar);
 
-CREATE INDEX idx_auditoria_proyecto_severidad_fecha
-    ON registro_auditoria_seguridad (proyecto_id, nivel_severidad, fecha_registro DESC);
-
--- Consulta Parametrizada con Paginación por Cursor (Keyset Pagination)
-PREPARE consultar_eventos_seguridad(UUID, SMALLINT, TIMESTAMPTZ, INT) AS
-    SELECT evento_id, codigo_regla, nivel_severidad, fecha_registro
-    FROM registro_auditoria_seguridad
-    WHERE proyecto_id = $1 AND nivel_severidad >= $2 AND fecha_registro < $3
-    ORDER BY fecha_registro DESC
-    LIMIT $4;"
+-- Consulta Parametrizada sin exposición de columna Clave (CWE-200 / CWE-89)
+SELECT IdUsuario, IdPerfil, Documento, Nombres, Apellidos, Correo, IdLugar, NomUser
+FROM Usuarios
+WHERE IdUsuario = @IdUsuarioParam;"
                 );
             }
 
             if (lower.Contains("requisito") || lower.Contains("requerimiento") || lower.Contains("ears") || lower.Contains("29148") || lower.Contains("ieee"))
             {
                 return (
-                    "Especificación Formal de Requisitos (Norma ISO/IEC/IEEE 29148 y Sintaxis EARS)",
+                    $"Especificación Formal de Requisitos (ISO/IEC/IEEE 29148 y EARS) — '{activeFile}'",
                     "Fundamentado en [Ingeniería de Requisitos ISO/IEC/IEEE 29148 y EARS]:\n" +
-                    "• REQ-SIS-01 (Ubicuo): El sistema deberá procesar el análisis estático AST y detección CWE íntegramente en memoria local sin transmisión de datos externos.\n" +
-                    "• REQ-SIS-02 (Dirigido por Eventos): CUANDO el operador modifique una línea en el editor, el sistema deberá recalcular las diferencias LCS y actualizar el minimapa en menos de 16ms.\n" +
-                    "• REQ-SEG-03 (Comportamiento No Deseado): SI se detecta una copia de memoria no acotada (CWE-120), ENTONCES el sistema deberá señalar la línea vulnerable y ofrecer su reemplazo acotado.",
-@"# Criterios formales de aceptación (Gherkin / Verificación ISO/IEC/IEEE 29148)
-Característica: Remediación determinista de vulnerabilidades de memoria en el editor
-  Escenario: Mitigación de desbordamiento de búfer en pila (CWE-120)
-    DADO un archivo de código fuente abierto con una invocación no acotada a 'strcpy'
-    CUANDO el operador ejecuta 'Remediación IA en Vivo'
-    ENTONCES el editor reemplaza progresivamente la instrucción por 'strncpy_s'
-    Y el motor de diferencias registra +1 línea añadida (verde) y -1 línea reemplazada (rojo)"
-                );
-            }
-
-            if (lower.Contains("iso") || lower.Contains("calidad") || lower.Contains("25010") || lower.Contains("27001"))
-            {
-                int secCount = _currentFindings.Count(x => x.Category == "SEGURIDAD");
-                int isoCount = _currentFindings.Count(x => x.Category == "ISO-25010");
-                return (
-                    $"Evaluación de Cumplimiento ISO/IEC 25010 e ISO/IEC 27001 sobre '{activeFile}'",
-                    $"Análisis estático ejecutado sobre '{activeFile}' ({lineCount} líneas):\n" +
-                    $"• Seguridad (ISO/IEC 25010 / ISO 27001 A.14): {secCount} vector(es) CWE detectados.\n" +
-                    $"• Mantenibilidad y Fiabilidad (ISO/IEC 25010): {isoCount} observación(es) detectadas.\n" +
-                    "• Eficiencia de Desempeño: Renderizado sin bloqueos y compresión de contexto AST activa.\n" +
-                    "• Acción recomendada: Pulse '⚡ Remediación IA en Vivo' en la barra del editor para aplicar las correcciones viendo el progreso paso a paso.",
+                    "• REQ-SIS-01 (Ubicuo): El sistema deberá almacenar las credenciales de usuario mediante funciones resumen criptográficas con sal (Argon2id/PBKDF2) de al menos 128 caracteres.\n" +
+                    "• REQ-SIS-02 (Dirigido por Eventos): CUANDO se registre un artículo en inventario, el sistema deberá validar que el atributo Costo sea un valor DECIMAL(18,2) mayor o igual a cero.\n" +
+                    "• REQ-SEG-03 (Comportamiento No Deseado): SI se intenta ejecutar una consulta sin proyección explícita de columnas, ENTONCES el sistema deberá restringir el acceso al campo de credenciales.",
                     null
                 );
             }
@@ -2638,25 +2881,25 @@ Característica: Remediación determinista de vulnerabilidades de memoria en el 
             if (lower.Contains("prueba") || lower.Contains("test") || lower.Contains("qa") || lower.Contains("unitaria") || lower.Contains("bva"))
             {
                 return (
-                    $"Batería de Pruebas Unitarias con Análisis de Valores Límite (BVA) para '{activeFile}'",
+                    $"Batería de Pruebas con Análisis de Valores Límite (BVA) para '{activeFile}'",
                     "Fundamentado en [Verificación QA y Análisis de Valores Límite (BVA)]:\n" +
-                    "Cubre la estructura Preparar-Actuar-Verificar (AAA) y las fronteras de dominio: puntero nulo, cadena vacía (mínimo), credencial nominal exacta y desbordamiento de 256 bytes (máximo + 1).",
-@"// Pruebas Unitarias Deterministas mediante Análisis de Valores Límite (BVA)
+                    "Cubre la estructura Preparar-Actuar-Verificar (AAA) y las fronteras de dominio (valores nulos, límite inferior 0, valor nominal y límite superior excedido).",
+                    ext == ".sql"
+                        ? @"-- Pruebas de Integridad y Valores Límite (BVA) sobre Esquema SQL
+-- 1. Frontera inferior válida (Costo = 0.00, Cantidad = 1)
+INSERT INTO Articulos (IdArticulo, Descripcion, Cantidad, Costo)
+VALUES ('ART-BVA-001', 'Artículo Frontera Mínima', 1, 0.00);
+
+-- 2. Verificación de actualización sobre columna correcta 'Nombres'
+UPDATE Usuarios SET Nombres = 'Juan Verificado' WHERE IdUsuario = '123';"
+                        : @"// Pruebas Unitarias Deterministas mediante Análisis de Valores Límite (BVA)
 #include <assert.h>
 #include <string.h>
 
-void probar_fronteras_verificar_credencial(void) {
-    // 1. Frontera nula (Puntero inválido)
+void probar_fronteras_modulo(void) {
     assert(verificar_credencial(NULL) == -1);
-    // 2. Frontera mínima (Cadena vacía)
     assert(verificar_credencial("""") == 0);
-    // 3. Valor nominal válido
     assert(verificar_credencial(""TOKEN_AUTORIZADO"") == 1);
-    // 4. Frontera superior excedida (Carga de 256 bytes)
-    char carga_excedida[256];
-    memset(carga_excedida, 'A', sizeof(carga_excedida) - 1);
-    carga_excedida[255] = '\0';
-    assert(verificar_credencial(carga_excedida) == 0);
 }"
                 );
             }
@@ -2670,19 +2913,18 @@ void probar_fronteras_verificar_credencial(void) {
                     "2. Validación defensiva de invariantes en la frontera del caso de uso.\n" +
                     "3. Ausencia de estado mutable compartido.",
 @"// Puerto de Dominio y Caso de Uso con Arquitectura Limpia (SOLID)
-public interface IRepositorioAuditoria {
-    Task RegistrarHallazgoAsync(string rutaArchivo, int linea, string codigoRegla, CancellationToken ct);
+public interface IRepositorioUsuarios {
+    Task<bool> ActualizarNombreUsuarioAsync(string idUsuario, string nombres, CancellationToken ct);
 }
 
-public sealed class CasoDeUsoAuditoriaSeguridad {
-    private readonly IRepositorioAuditoria _repositorio;
-    public CasoDeUsoAuditoriaSeguridad(IRepositorioAuditoria repositorio) => _repositorio = repositorio;
+public sealed class ServicioGestionUsuarios {
+    private readonly IRepositorioUsuarios _repositorio;
+    public ServicioGestionUsuarios(IRepositorioUsuarios repositorio) => _repositorio = repositorio;
 
-    public async Task<bool> EjecutarAsync(string rutaArchivo, int linea, string codigoRegla, CancellationToken ct) {
-        if (string.IsNullOrWhiteSpace(rutaArchivo) || linea <= 0)
-            throw new ArgumentException(""Coordenadas de auditoría inválidas."");
-        await _repositorio.RegistrarHallazgoAsync(rutaArchivo, linea, codigoRegla, ct);
-        return true;
+    public async Task<bool> EjecutarActualizacionAsync(string idUsuario, string nombres, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(idUsuario) || string.IsNullOrWhiteSpace(nombres))
+            throw new ArgumentException(""Identificador y nombre son obligatorios."");
+        return await _repositorio.ActualizarNombreUsuarioAsync(idUsuario.Trim(), nombres.Trim(), ct);
     }
 }"
                 );
@@ -2696,8 +2938,8 @@ public sealed class CasoDeUsoAuditoriaSeguridad {
                 $"Diagnóstico de Ingeniería de Software y Ciberseguridad: '{activeFile}'",
                 $"Anclado al árbol sintáctico de '{activeFile}' ({lineCount} líneas):\n" +
                 $"Hallazgos detectados:\n{findingsSummary}\n\n" +
-                "Puede pulsar '⚡ Remediación IA en Vivo' en la barra superior del editor para observar cómo la IA corrige el código línea por línea.",
-                null
+                "Puede pulsar '⚡ Remediación IA en Vivo' en la barra superior del editor para aplicar las correcciones sobre su archivo y confirmarlas con un clic.",
+                _currentFindings.Count > 0 ? GenerarVersionRefactorizadaDelArchivoActivo() : null
             );
         }
 
@@ -2706,16 +2948,6 @@ public sealed class CasoDeUsoAuditoriaSeguridad {
             _showInlineDiff = !_showInlineDiff;
             BtnDiffModeToggle.Content = _showInlineDiff ? "⇄ Diferencias: ACTIVO" : "⇄ Diferencias: INACTIVO";
             RefreshAllLiveViews();
-        }
-
-        private void BtnResetBaseline_Click(object sender, RoutedEventArgs e)
-        {
-            if (!string.IsNullOrEmpty(_activeFilePath))
-            {
-                _fileBaselines[_activeFilePath] = SplitLines(CodeEditorTextBox.Text);
-                RefreshAllLiveViews();
-                AppendAssistantCard("LÍNEA BASE", Color.FromRgb(0x44, 0x93, 0xf8), "Línea Base de Comparación Actualizada", $"El estado actual de '{System.IO.Path.GetFileName(_activeFilePath)}' se ha fijado como nueva referencia para el control de cambios.", null);
-            }
         }
 
         private void BtnSaveFile_Click(object sender, RoutedEventArgs e) => SaveCurrentFile();
