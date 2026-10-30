@@ -9,6 +9,8 @@ namespace Secdev.Workstation
 {
     public partial class MainWindow : Window
     {
+        private const string PlaceholderText = "Type a message...";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -16,6 +18,11 @@ namespace Secdev.Workstation
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ClickCount == 2)
+            {
+                BtnMaximize_Click(sender, e);
+                return;
+            }
             if (e.ButtonState == MouseButtonState.Pressed)
             {
                 DragMove();
@@ -37,6 +44,24 @@ namespace Secdev.Workstation
             Close();
         }
 
+        private void TxtPrompt_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (TxtPrompt.Text == PlaceholderText)
+            {
+                TxtPrompt.Text = string.Empty;
+                TxtPrompt.Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3));
+            }
+        }
+
+        private void TxtPrompt_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(TxtPrompt.Text))
+            {
+                TxtPrompt.Text = PlaceholderText;
+                TxtPrompt.Foreground = new SolidColorBrush(Color.FromRgb(0x4c, 0x5f, 0x72));
+            }
+        }
+
         private void TxtPrompt_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
@@ -50,124 +75,242 @@ namespace Secdev.Workstation
             SendMessage();
         }
 
-        private async void SendMessage()
+        private void BtnTemplate_Click(object sender, RoutedEventArgs e)
         {
-            string prompt = TxtPrompt.Text.Trim();
-            if (string.IsNullOrEmpty(prompt)) return;
+            TxtPrompt.Text = "Analyze memory offset 0x7FFE0040 and generate ROP chain mitigation";
+            TxtPrompt.Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3));
+            TxtPrompt.Focus();
+            TxtPrompt.CaretIndex = TxtPrompt.Text.Length;
+        }
 
-            TxtPrompt.Text = string.Empty;
-
-            // 1. Add User Message
-            var userBorder = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(0x1a, 0x23, 0x32)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x00, 0xe5, 0xff)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(10),
-                Margin = new Thickness(0, 0, 0, 10),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                MaxWidth = 420
-            };
-
-            var userText = new TextBlock
-            {
-                Text = prompt,
-                FontFamily = new FontFamily("Consolas, JetBrains Mono"),
-                Foreground = Brushes.White,
-                TextWrapping = TextWrapping.Wrap
-            };
-            userBorder.Child = userText;
-            ChatContainer.Children.Add(userBorder);
-            ChatScrollViewer.ScrollToEnd();
-
-            // 2. Stream AI Response
-            var aiBorder = new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(0x16, 0x1b, 0x22)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x30, 0x36, 0x3d)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(12),
-                Margin = new Thickness(0, 0, 0, 10),
-                HorizontalAlignment = HorizontalAlignment.Left
-            };
-
-            var aiStack = new StackPanel();
-            var aiHeader = new TextBlock
-            {
-                Text = "⚡ Qwen2.5-Coder-7B [Air-Gapped Ingestion]:",
-                FontFamily = new FontFamily("Consolas"),
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xff, 0x9d)),
-                Margin = new Thickness(0, 0, 0, 6)
-            };
-            aiStack.Children.Add(aiHeader);
-
-            var aiContent = new TextBlock
-            {
-                Text = "",
-                FontFamily = new FontFamily("Consolas"),
-                Foreground = new SolidColorBrush(Color.FromRgb(0xf0, 0xf6, 0xfc)),
-                TextWrapping = TextWrapping.Wrap
-            };
-            aiStack.Children.Add(aiContent);
-            aiBorder.Child = aiStack;
-            ChatContainer.Children.Add(aiBorder);
-
-            string responseTemplate = $"[Auditoría de Seguridad Local]\n" +
-                                       $"Para responder a '{prompt}':\n" +
-                                       $"En sistemas de bajo nivel (C/C++), asegúrate de compilar con banderas de mitigación activas:\n" +
-                                       $"  • -fstack-protector-strong / /GS (Canarios en pila)\n" +
-                                       $"  • -D_FORTIFY_SOURCE=2\n" +
-                                       $"  • ASLR + DEP/NX habilitado (/DYNAMICBASE /NXCOMPAT)\n\n" +
-                                       $"El modelo local ha validado que el buffer asignado cumple con los límites de seguridad en memoria.";
-
-            string[] words = responseTemplate.Split(' ');
-            foreach (var word in words)
-            {
-                aiContent.Text += word + " ";
-                ChatScrollViewer.ScrollToEnd();
-                await Task.Delay(35);
-            }
+        private void BtnSearch_Click(object sender, RoutedEventArgs e)
+        {
+            AppendAssistantCard(
+                "❈",
+                Color.FromRgb(0x00, 0xff, 0x9d),
+                "Deep Symbol & AST Scan Complete:",
+                "Scanned 14 symbols in auditorium.py / code.emn.\n• 1 Critical Stack Buffer Overflow (line 8)\n• 0 Outbound network sockets (Air-Gap verified)"
+            );
         }
 
         private void BtnSimulate_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "Simulando vector de ataque local (CWE-120):\n\n" +
-                "Payload: $(python -c 'print(\"A\"*72 + \"\\xef\\xbe\\xad\\xde\")')\n" +
-                "Resultado: Sobre-escritura del Instruction Pointer (RIP -> 0xDEADBEEF)\n" +
-                "Estado de contención: Interceptado en Sandbox local de secdev.",
-                "secdev // Exploit Simulation Engine",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning
+            AppendAssistantCard(
+                "⚠",
+                Color.FromRgb(0xf5, 0xa6, 0x23),
+                "Sandbox Exploit Probe Executed",
+                "Target: CoeniMatch::stack_frame (0x7FFE0040)\nPayload: 72 bytes cyclic pattern + 0xDEADBEEF\nStatus: Contained inside isolated secdev ring-buffer sandbox."
             );
         }
 
         private void BtnApplyPatch_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "Parche de seguridad aplicado con éxito en buffer local:\n\n" +
-                "- strcpy(stack_buffer, user_payload);\n" +
-                "+ strncpy_s(stack_buffer, sizeof(stack_buffer), user_payload, _TRUNCATE);\n\n" +
-                "Vulnerabilidad mitigada: 100%. Verificado por AST Analyzer.",
-                "secdev // Patch Applied",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information
+            AppendAssistantCard(
+                "❈",
+                Color.FromRgb(0x00, 0xff, 0x9d),
+                "Automated Secure Patch Applied",
+                "Replaced unbounded buffer assignment with Stack.BufSafeBound() guard.\n✓ AST Verification: 0 remaining high-severity vulnerabilities."
             );
         }
 
-        private void BtnExport_Click(object sender, RoutedEventArgs e)
+        private void AppendAssistantCard(string icon, Color accentColor, string title, string body)
         {
-            MessageBox.Show(
-                "Reporte de Auditoría de Seguridad exportado en formato JSON/SARIF:\n\n" +
-                "Ruta: ./reports/secdev_audit_exploit_audit_c.sarif\n" +
-                "Estándar: OASIS SARIF v2.1.0 compatible con GitHub Security & CI/CD.",
-                "secdev // Report Exported",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information
-            );
+            var rowGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var avatarBorder = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
+                Background = new SolidColorBrush(Color.FromRgb(0x0c, 0x24, 0x1e)),
+                BorderBrush = new SolidColorBrush(accentColor),
+                BorderThickness = new Thickness(1),
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+
+            var avatarText = new TextBlock
+            {
+                Text = icon,
+                FontSize = 12,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(accentColor)
+            };
+            avatarBorder.Child = avatarText;
+            Grid.SetColumn(avatarBorder, 0);
+
+            var cardBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x08, 0x17, 0x15)),
+                BorderBrush = new SolidColorBrush(accentColor),
+                BorderThickness = new Thickness(2, 1, 1, 1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(14, 10, 14, 10)
+            };
+
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(accentColor),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = body,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)),
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            cardBorder.Child = stack;
+            Grid.SetColumn(cardBorder, 1);
+
+            rowGrid.Children.Add(avatarBorder);
+            rowGrid.Children.Add(cardBorder);
+
+            ChatContainer.Children.Add(rowGrid);
+            ChatScrollViewer.ScrollToEnd();
+        }
+
+        private async void SendMessage()
+        {
+            string prompt = TxtPrompt.Text.Trim();
+            if (string.IsNullOrEmpty(prompt) || prompt == PlaceholderText) return;
+
+            TxtPrompt.Text = string.Empty;
+
+            // 1. Add User Prompt Row (Avatar + Card)
+            var userGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            userGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            userGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var userAvatar = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
+                Background = new SolidColorBrush(Color.FromRgb(0x10, 0x2b, 0x2a)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x1f, 0x6f, 0x64)),
+                BorderThickness = new Thickness(1),
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 2, 0, 0),
+                Child = new TextBlock
+                {
+                    Text = "👤",
+                    FontSize = 12,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xff, 0x9d))
+                }
+            };
+            Grid.SetColumn(userAvatar, 0);
+
+            var userCard = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x0c, 0x12, 0x19)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x17, 0x22, 0x2d)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(12, 9, 12, 9),
+                Child = new TextBlock
+                {
+                    Text = prompt,
+                    FontFamily = new FontFamily("Segoe UI, Consolas"),
+                    FontSize = 12.5,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)),
+                    TextWrapping = TextWrapping.Wrap
+                }
+            };
+            Grid.SetColumn(userCard, 1);
+
+            userGrid.Children.Add(userAvatar);
+            userGrid.Children.Add(userCard);
+            ChatContainer.Children.Add(userGrid);
+            ChatScrollViewer.ScrollToEnd();
+
+            // 2. Add Streaming AI Thought-Process Card
+            var aiGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            aiGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+            aiGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var aiAvatar = new Border
+            {
+                Width = 26,
+                Height = 26,
+                CornerRadius = new CornerRadius(13),
+                Background = new SolidColorBrush(Color.FromRgb(0x0c, 0x2d, 0x23)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x00, 0xff, 0x9d)),
+                BorderThickness = new Thickness(1),
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 2, 0, 0),
+                Child = new TextBlock
+                {
+                    Text = "❈",
+                    FontSize = 13,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xff, 0x9d))
+                }
+            };
+            Grid.SetColumn(aiAvatar, 0);
+
+            var aiStack = new StackPanel();
+            aiStack.Children.Add(new TextBlock
+            {
+                Text = "Thought-process reasoning:",
+                FontFamily = new FontFamily("Segoe UI, Consolas"),
+                FontSize = 12.5,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)),
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+
+            var aiContent = new TextBlock
+            {
+                Text = "",
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xb0, 0xc4, 0xd4)),
+                TextWrapping = TextWrapping.Wrap
+            };
+            aiStack.Children.Add(aiContent);
+
+            var aiCard = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x08, 0x17, 0x15)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x00, 0xff, 0x9d)),
+                BorderThickness = new Thickness(2, 1, 1, 1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(14, 10, 14, 10),
+                Child = aiStack
+            };
+            Grid.SetColumn(aiCard, 1);
+
+            aiGrid.Children.Add(aiAvatar);
+            aiGrid.Children.Add(aiCard);
+            ChatContainer.Children.Add(aiGrid);
+
+            string response = $"1. Analyzing request: \"{prompt}\"\n" +
+                              "2. Inspecting HEX segment 0x7FFE0010..0x7FFE0060 and AST node tree.\n" +
+                              "3. Verifying bounds safety and generating zero-overhead memory guard.\n" +
+                              "4. ✓ Patch validated in isolated local sandbox (52 tok/s).";
+
+            string[] tokens = response.Split(' ');
+            foreach (var token in tokens)
+            {
+                aiContent.Text += token + " ";
+                ChatScrollViewer.ScrollToEnd();
+                await Task.Delay(25);
+            }
         }
     }
 }

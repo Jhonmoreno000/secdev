@@ -1,303 +1,681 @@
 <Window x:Class="Secdev.Workstation.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="secdev // Tactical AI Workstation"
-        Height="880" Width="1440"
-        MinHeight="680" MinWidth="1050"
+        Title="secdev // engine: v1.0.4-native // offline mode"
+        Height="900" Width="1520"
+        MinHeight="720" MinWidth="1150"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
         WindowStartupLocation="CenterScreen">
 
-    <!-- Outer Container with Custom Cyber Border -->
-    <Border Background="{StaticResource BrushObsidian}"
-            BorderBrush="{StaticResource BrushBorder}"
+    <!-- Outer Frame with Cyberpunk Obsidian Border -->
+    <Border Background="{StaticResource BrushBgRoot}"
+            BorderBrush="#1a2c35"
             BorderThickness="1"
             CornerRadius="6">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="42"/> <!-- Header / TitleBar -->
-                <RowDefinition Height="*"/>  <!-- Main Workstation Panes -->
-                <RowDefinition Height="36"/> <!-- Bottom Telemetry HUD -->
+                <RowDefinition Height="38"/> <!-- Row 0: Minimalist Header Bar -->
+                <RowDefinition Height="*"/>  <!-- Row 1: Main Workspace (Sidebar + Left Stack + Right AI) -->
+                <RowDefinition Height="38"/> <!-- Row 2: Bottom Telemetry HUD Bar -->
             </Grid.RowDefinitions>
 
-            <!-- ========================================== -->
-            <!-- ROW 0: Custom Header / Draggable TitleBar  -->
-            <!-- ========================================== -->
+            <!-- ========================================================= -->
+            <!-- ROW 0: Minimalist Tactical Header Bar                     -->
+            <!-- ========================================================= -->
             <Border Grid.Row="0"
-                    Background="{StaticResource BrushSurface}"
-                    BorderBrush="{StaticResource BrushBorder}"
+                    Background="{StaticResource BrushBgHeader}"
+                    BorderBrush="{StaticResource BrushBorderSubtle}"
                     BorderThickness="0,0,0,1"
+                    CornerRadius="6,6,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <Grid Margin="16,0,10,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/> <!-- Title / Logo -->
-                        <ColumnDefinition Width="*"/>    <!-- Status Badges -->
-                        <ColumnDefinition Width="Auto"/> <!-- Window Controls -->
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Title -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="⚡ secdev"
-                                   FontFamily="Consolas, JetBrains Mono"
-                                   FontSize="15"
-                                   FontWeight="Bold"
-                                   Foreground="{StaticResource BrushNeonGreen}"/>
-                        <TextBlock Text=" // v1.0.0-native // tactical ai workstation"
-                                   FontFamily="Consolas, JetBrains Mono"
-                                   FontSize="12"
-                                   Foreground="{StaticResource BrushTextMuted}"
-                                   Margin="8,2,0,0"/>
-                    </StackPanel>
-
-                    <!-- Security & Hardware Badges -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <!-- Air-Gap Badge -->
-                        <Border Background="#132c21" BorderBrush="#00ff9d" BorderThickness="1" CornerRadius="3" Padding="8,2" Margin="4,0">
-                            <TextBlock Text="● 100% AIR-GAPPED" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#00ff9d"/>
-                        </Border>
-                        <!-- GPU Hardware Badge -->
-                        <Border Background="#112c38" BorderBrush="#00e5ff" BorderThickness="1" CornerRadius="3" Padding="8,2" Margin="4,0">
-                            <TextBlock Text="GPU: NVIDIA RTX 3050 (4GB VRAM)" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#00e5ff"/>
-                        </Border>
-                        <!-- Model Active Badge -->
-                        <Border Background="#251e12" BorderBrush="#d29922" BorderThickness="1" CornerRadius="3" Padding="8,2" Margin="4,0">
-                            <TextBlock Text="MODEL: Qwen2.5-Coder-7B" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#d29922"/>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- Window Control Buttons -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="—" Style="{StaticResource CyberButton}" Padding="10,2" Margin="2,0" Click="BtnMinimize_Click" ToolTip="Minimize"/>
-                        <Button Content="▢" Style="{StaticResource CyberButton}" Padding="10,2" Margin="2,0" Click="BtnMaximize_Click" ToolTip="Maximize / Restore"/>
-                        <Button Content="✕" Style="{StaticResource CyberButton}" Padding="10,2" Margin="2,0" Click="BtnClose_Click" ToolTip="Close secdev" Background="#331919" BorderBrush="#f85149" Foreground="#f85149"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <!-- ========================================== -->
-            <!-- ROW 1: Workstation Tiling Panes            -->
-            <!-- ========================================== -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.2*" MinWidth="420"/> <!-- Left: Code / AST / Reversing -->
-                    <ColumnDefinition Width="4"/>                  <!-- Splitter -->
-                    <ColumnDefinition Width="1*" MinWidth="380"/>   <!-- Right: AI Copilot -->
-                </Grid.ColumnDefinitions>
-
-                <!-- LEFT PANE: Code Editor & Vulnerability AST -->
-                <Border Grid.Column="0" Background="{StaticResource BrushSurface}" Margin="6,6,0,6" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="36"/> <!-- Tabs -->
-                            <RowDefinition Height="*"/>  <!-- Code View -->
-                            <RowDefinition Height="160"/> <!-- AST / Inspector Sub-panel -->
-                        </Grid.RowDefinitions>
-
-                        <!-- Tab Header -->
-                        <Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
-                                <Border Background="{StaticResource BrushSurface}" BorderBrush="{StaticResource BrushNeonGreen}" BorderThickness="0,0,0,2" Padding="12,6">
-                                    <TextBlock Text="exploit_audit.c *" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
-                                </Border>
-                                <Border Padding="12,6">
-                                    <TextBlock Text="AST Topology" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}"/>
-                                </Border>
-                                <Border Padding="12,6">
-                                    <TextBlock Text="Disassembly / Hex" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}"/>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Code Editor / Viewer with Syntax Colors -->
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                            <StackPanel Margin="16,12">
-                                <TextBlock Text="// secdev Security Analysis Buffer: Target Memory Layout" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}"/>
-                                <TextBlock Text="#include &lt;stdio.h&gt;" FontFamily="Consolas" Foreground="{StaticResource BrushCyberCyan}"/>
-                                <TextBlock Text="#include &lt;string.h&gt;" FontFamily="Consolas" Foreground="{StaticResource BrushCyberCyan}"/>
-                                <TextBlock Text="#include &lt;stdlib.h&gt;" FontFamily="Consolas" Foreground="{StaticResource BrushCyberCyan}"/>
-                                <TextBlock Text="" FontFamily="Consolas"/>
-                                <TextBlock Text="void handle_connection(const char *user_payload) {" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
-                                <TextBlock Text="    char stack_buffer[64]; // Vulnerable allocation" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
-                                <TextBlock Text="" FontFamily="Consolas"/>
-
-                                <!-- Vulnerability Highlight Zone -->
-                                <Border Background="#2a1215" BorderBrush="{StaticResource BrushRed}" BorderThickness="1" CornerRadius="4" Padding="10,6" Margin="0,4">
-                                    <StackPanel>
-                                        <TextBlock Text="    strcpy(stack_buffer, user_payload); // Line 14" FontFamily="Consolas" FontWeight="Bold" Foreground="{StaticResource BrushRed}"/>
-                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                            <TextBlock Text="    [!] CRITICAL: Potential Buffer Overflow (CWE-120)" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushRed}"/>
-                                            <TextBlock Text=" - No boundary check on user_payload" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-
-                                <TextBlock Text="    printf(&quot;Payload processed: %s\n&quot;, stack_buffer);" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
-                                <TextBlock Text="}" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
-                                <TextBlock Text="" FontFamily="Consolas"/>
-                                <TextBlock Text="int main(int argc, char **argv) {" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
-                                <TextBlock Text="    if (argc &gt; 1) handle_connection(argv[1]);" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
-                                <TextBlock Text="    return 0;" FontFamily="Consolas" Foreground="{StaticResource BrushText}"/>
-                                <TextBlock Text="}" FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}"/>
-                            </StackPanel>
-                        </ScrollViewer>
-
-                        <!-- AST / Security Inspection Sub-Panel -->
-                        <Border Grid.Row="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="12,8">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="STATIC AST SECURITY AUDITOR" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushCyberCyan}"/>
-                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
-                                    <StackPanel>
-                                        <TextBlock Text="▸ FunctionDef: handle_connection [line 8] -> Stack Frame: 0x40 bytes" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushText}"/>
-                                        <TextBlock Text="  └─ VarDecl: stack_buffer (char[64]) at offset [RBP - 0x40]" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAmber}"/>
-                                        <TextBlock Text="  └─ CallExpr: strcpy [UNSAFE SYMBOL] -> Target: stack_buffer" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushRed}"/>
-                                        <TextBlock Text="  └─ Taint Analysis: 'user_payload' flows directly from argv[1] without bounds sanitizer" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushRed}"/>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-
-                <!-- GridSplitter -->
-                <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="{StaticResource BrushBorder}"/>
-
-                <!-- RIGHT PANE: AI Security Agent & Reasoning Stream -->
-                <Border Grid.Column="2" Background="{StaticResource BrushSurface}" Margin="0,6,6,6" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="36"/> <!-- Header -->
-                            <RowDefinition Height="*"/>  <!-- Chat / Token Stream -->
-                            <RowDefinition Height="Auto"/> <!-- Quick Action Bar -->
-                            <RowDefinition Height="54"/> <!-- User Input -->
-                        </Grid.RowDefinitions>
-
-                        <!-- Pane Header -->
-                        <Border Grid.Row="0" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="12,0">
-                            <Grid VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🤖 Local Security Copilot" FontFamily="Consolas" FontWeight="Bold" Foreground="{StaticResource BrushNeonGreen}"/>
-                                    <TextBlock Text=" [Qwen2.5-Coder-7B]" FontFamily="Consolas" Foreground="{StaticResource BrushTextMuted}" Margin="6,0,0,0"/>
-                                </StackPanel>
-                                <TextBlock Text="● 28.5 tok/s (Active)" HorizontalAlignment="Right" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushNeonGreen}"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Chat & Token Stream -->
-                        <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12">
-                            <StackPanel x:Name="ChatContainer">
-                                <!-- AI Assistant Reasoning Block -->
-                                <Border Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <!-- Thought / Chain-of-Thought Stream -->
-                                        <Border Background="#0f1922" BorderBrush="{StaticResource BrushCyberCyan}" BorderThickness="1,0,0,0" Padding="8,4" Margin="0,0,0,8">
-                                            <StackPanel>
-                                                <TextBlock Text="&lt;thinking&gt;" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushCyberCyan}"/>
-                                                <TextBlock Text="Inspecting handle_connection: User payload reaches strcpy with no length validation. The return address on the stack (RBP + 8) can be overwritten with ~72 bytes of padding. Vulnerability classification: CWE-120."
-                                                           FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" TextWrapping="Wrap"/>
-                                                <TextBlock Text="&lt;/thinking&gt;" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushCyberCyan}"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <TextBlock Text="He analizado 'exploit_audit.c'. La función handle_connection contiene una vulnerabilidad clásica de desbordamiento de búfer en pila (Buffer Overflow)."
-                                                   FontFamily="Consolas" Foreground="{StaticResource BrushText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-
-                                        <TextBlock Text="🛡️ Mitigación Segura Propuesta:" FontFamily="Consolas" FontWeight="Bold" Foreground="{StaticResource BrushNeonGreen}" Margin="0,4,0,4"/>
-                                        <Border Background="{StaticResource BrushObsidian}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="3" Padding="8">
-                                            <TextBlock Text="strncpy_s(stack_buffer, sizeof(stack_buffer), user_payload, _TRUNCATE);"
-                                                       FontFamily="Consolas" Foreground="{StaticResource BrushNeonGreen}" TextWrapping="Wrap"/>
-                                        </Border>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
-
-                        <!-- Quick Action Bar -->
-                        <Border Grid.Row="2" Background="{StaticResource BrushPanel}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,1" Padding="8,6">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <Button Content="⚡ Simulate Exploit" Style="{StaticResource CyberButton}" Margin="4,0" Click="BtnSimulate_Click"/>
-                                <Button Content="🛡️ Apply Patch" Style="{StaticResource CyberButton}" Margin="4,0" Click="BtnApplyPatch_Click"/>
-                                <Button Content="📋 Export Audit" Style="{StaticResource CyberButton}" Margin="4,0" Click="BtnExport_Click"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- User Prompt Input -->
-                        <Border Grid.Row="3" Background="{StaticResource BrushSurface}" Padding="8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="80"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="TxtPrompt"
-                                         Grid.Column="0"
-                                         Background="{StaticResource BrushPanel}"
-                                         Foreground="{StaticResource BrushText}"
-                                         BorderBrush="{StaticResource BrushBorder}"
-                                         BorderThickness="1"
-                                         FontFamily="Consolas, JetBrains Mono"
-                                         FontSize="12"
-                                         Padding="8,6"
-                                         VerticalContentAlignment="Center"
-                                         KeyDown="TxtPrompt_KeyDown"/>
-                                <Button Grid.Column="1"
-                                        Content="SEND ⏎"
-                                        Style="{StaticResource NeonActionButton}"
-                                        Margin="6,0,0,0"
-                                        Click="BtnSend_Click"/>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-            </Grid>
-
-            <!-- ========================================== -->
-            <!-- ROW 2: Bottom Real-Time Telemetry HUD     -->
-            <!-- ========================================== -->
-            <Border Grid.Row="2"
-                    Background="{StaticResource BrushSurface}"
-                    BorderBrush="{StaticResource BrushBorder}"
-                    BorderThickness="0,1,0,0">
-                <Grid Margin="16,0">
+                <Grid Margin="14,0,8,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Left: Hardware VRAM & Tokens/sec -->
+                    <!-- Left: secdev // engine: v1.0.4-native // offline mode -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- VRAM Meter -->
-                        <TextBlock Text="VRAM:" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                        <ProgressBar Width="90" Height="8" Minimum="0" Maximum="4.0" Value="2.8" Margin="6,0"
-                                     Foreground="{StaticResource BrushNeonGreen}" Background="#161b22" BorderBrush="{StaticResource BrushBorder}"/>
-                        <TextBlock Text="2.8 GB / 4.0 GB (RTX 3050)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushNeonGreen}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-
-                        <!-- Speed Counter -->
-                        <TextBlock Text="SPEED: " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="TxtSpeed" Text="28.5 tok/s" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushCyberCyan}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-
-                        <!-- GPU Temp -->
-                        <TextBlock Text="GPU TEMP: " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                        <TextBlock Text="54°C" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+                        <TextBlock Text="secdev"
+                                   FontFamily="Consolas, JetBrains Mono"
+                                   FontSize="14"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource BrushNeonEmerald}"
+                                   Effect="{StaticResource EmeraldGlow}"/>
+                        <TextBlock Text=" // engine: v1.0.4-native // offline mode"
+                                   FontFamily="Consolas, JetBrains Mono"
+                                   FontSize="13"
+                                   Foreground="{StaticResource BrushTextSecondary}"
+                                   Margin="4,0,0,0"/>
                     </StackPanel>
 
-                    <!-- Center: RAM & FPS -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="RAM: 6.4 GB / 32 GB  |  ENGINE: 120 FPS Direct3D  |  OFFLINE AIR-GAP: ENFORCED"
-                                   FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
-                    </StackPanel>
-
-                    <!-- Right: Engine Status -->
+                    <!-- Right: Minimalist Window Controls (—, ▢, ✕) -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="STATUS: " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
-                        <TextBlock Text="ONLINE (LOCAL)" FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushNeonGreen}"/>
+                        <Button Content="—" Style="{StaticResource WindowControlBtn}" Click="BtnMinimize_Click" ToolTip="Minimize"/>
+                        <Button Content="▢" Style="{StaticResource WindowControlBtn}" Click="BtnMaximize_Click" ToolTip="Maximize"/>
+                        <Button Content="✕" Style="{StaticResource WindowControlBtn}" Click="BtnClose_Click" ToolTip="Close"/>
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <!-- ========================================================= -->
+            <!-- ROW 1: Main Workstation Content                           -->
+            <!-- ========================================================= -->
+            <Grid Grid.Row="1" Margin="0,4,6,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="46"/>     <!-- Col 0: Left Activity Icon Rail -->
+                    <ColumnDefinition Width="1.02*"/>  <!-- Col 1: Left Pane (Code + Hex + AST) -->
+                    <ColumnDefinition Width="6"/>      <!-- Col 2: Splitter -->
+                    <ColumnDefinition Width="1.12*"/>  <!-- Col 3: Right Pane (Qwen-Coder-Sec Assistant) -->
+                </Grid.ColumnDefinitions>
+
+                <!-- ===================================================== -->
+                <!-- COL 0: Left Activity Sidebar Rail                     -->
+                <!-- ===================================================== -->
+                <Border Grid.Column="0"
+                        Background="{StaticResource BrushBgSidebar}"
+                        BorderBrush="{StaticResource BrushBorderSubtle}"
+                        BorderThickness="0,0,1,0"
+                        Margin="0,0,4,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Top Tool Icons -->
+                        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,6,0,0">
+                            <!-- Active Code Explorer Icon -->
+                            <Grid>
+                                <Border Width="2" Height="24" Background="{StaticResource BrushNeonEmerald}"
+                                        HorizontalAlignment="Left" Margin="-3,0,0,0" Effect="{StaticResource EmeraldGlow}"/>
+                                <Button Style="{StaticResource SidebarIconButtonActive}" ToolTip="Code &amp; AST Workspace">
+                                    <TextBlock Text="❐" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                                </Button>
+                            </Grid>
+                            <!-- Search -->
+                            <Button Style="{StaticResource SidebarIconButton}" ToolTip="Deep Symbol Search" Click="BtnSearch_Click">
+                                <TextBlock Text="⌕" FontSize="17" FontFamily="Segoe UI Symbol"/>
+                            </Button>
+                            <!-- Source Control / Git -->
+                            <Button Style="{StaticResource SidebarIconButton}" ToolTip="Git Branch: feat/native-engine-and-automations">
+                                <TextBlock Text="⑂" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                            </Button>
+                            <!-- Exploit Debugger -->
+                            <Button Style="{StaticResource SidebarIconButton}" ToolTip="Exploit Simulation &amp; Sandbox" Click="BtnSimulate_Click">
+                                <TextBlock Text="▷" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                            </Button>
+                            <!-- Cyber Modules -->
+                            <Button Style="{StaticResource SidebarIconButton}" ToolTip="Security Modules &amp; Rules">
+                                <TextBlock Text="⊞" FontSize="16" FontFamily="Segoe UI Symbol"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Bottom Profile & Settings Icons -->
+                        <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,8">
+                            <Button Style="{StaticResource SidebarIconButton}" ToolTip="Operator Profile (Air-Gapped)">
+                                <TextBlock Text="☺" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                            </Button>
+                            <Button Style="{StaticResource SidebarIconButton}" ToolTip="Engine Settings">
+                                <TextBlock Text="⚙" FontSize="16" FontFamily="Segoe UI Symbol"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ===================================================== -->
+                <!-- COL 1: Left Stack (Code Editor + Hex + AST Detection) -->
+                <!-- ===================================================== -->
+                <Border Grid.Column="1"
+                        Background="{StaticResource BrushBgPane}"
+                        BorderBrush="#17493d"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="1.35*"/> <!-- Section 1: Code Editor + Minimap -->
+                            <RowDefinition Height="0.88*"/> <!-- Section 2: HEX INSPECTION -->
+                            <RowDefinition Height="1.05*"/> <!-- Section 3: AST VULNERABILITY DETECTION -->
+                        </Grid.RowDefinitions>
+
+                        <!-- 1. CODE EDITOR SECTION -->
+                        <Grid Grid.Row="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/> <!-- Tab Bar -->
+                                <RowDefinition Height="24"/> <!-- Breadcrumbs -->
+                                <RowDefinition Height="*"/>  <!-- Code + Minimap -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Editor Tab Bar -->
+                            <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Active Tab: <> code editor × -->
+                                    <Border Grid.Column="0" Background="{StaticResource BrushBgPane}" BorderBrush="{StaticResource BrushNeonEmerald}" BorderThickness="0,2,1,0" Padding="12,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="&lt;&gt;" FontFamily="Consolas" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,0,6,0"/>
+                                            <TextBlock Text="code editor" FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}"/>
+                                            <TextBlock Text="×" FontFamily="Consolas" FontSize="13" Foreground="{StaticResource BrushTextMuted}" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Right Action Icons (▷, ⇄, ◫, ⋯) -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
+                                        <Button Content="▷" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSimulate_Click" ToolTip="Run Security Audit"/>
+                                        <Button Content="⇄" Style="{StaticResource ToolbarMiniBtn}" Click="BtnApplyPatch_Click" ToolTip="Toggle Patch Diff"/>
+                                        <Button Content="◫" Style="{StaticResource ToolbarMiniBtn}" ToolTip="Split Pane"/>
+                                        <Button Content="⋯" Style="{StaticResource ToolbarMiniBtn}" ToolTip="More Actions"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Breadcrumb Bar -->
+                            <Border Grid.Row="1" Background="#080c12" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="12,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="src" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextSecondary}"/>
+                                    <TextBlock Text=" › " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="auditorium.py" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextSecondary}"/>
+                                    <TextBlock Text=" › " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="{}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushAmber}" Margin="0,0,4,0"/>
+                                    <TextBlock Text="code.emn" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextSecondary}"/>
+                                    <TextBlock Text=" › " FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}"/>
+                                    <TextBlock Text="🛡 top" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushNeonEmerald}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Editor Body + Right Minimap -->
+                            <Grid Grid.Row="2" Background="#070b10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="38"/> <!-- Line Numbers -->
+                                    <ColumnDefinition Width="*"/>  <!-- Code Lines -->
+                                    <ColumnDefinition Width="78"/> <!-- Code Minimap -->
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Line Numbers -->
+                                <StackPanel Grid.Column="0" Margin="0,8,6,0" HorizontalAlignment="Right">
+                                    <TextBlock Text="1" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="2" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="3" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="4" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="5" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="6" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="7" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="8" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushAmber}" FontWeight="Bold" LineHeight="18"/>
+                                    <TextBlock Text="9" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="10" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="11" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="12" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="13" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="14" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                    <TextBlock Text="15" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="18"/>
+                                </StackPanel>
+
+                                <!-- Syntax Highlighted Code -->
+                                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="6,8,0,8">
+                                        <!-- Line 1 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="#include " Foreground="#d2a8ff"/><Run Text="&lt;cyberator.h&gt;" Foreground="#a5d6ff"/>
+                                        </TextBlock>
+                                        <!-- Line 2 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="import " Foreground="#ff7b72"/><Run Text="secuvscoder_secs;" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 3 -->
+                                        <TextBlock Text="" FontFamily="Consolas" FontSize="12.5" LineHeight="18"/>
+                                        <!-- Line 4 (CodeLens) -->
+                                        <TextBlock Text="0 references | 🛡️ AST Taint Tracked" FontFamily="Consolas" FontSize="11" Foreground="#586e75" LineHeight="18"/>
+                                        <!-- Line 5 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="function " Foreground="#79c0ff"/><Run Text="CoeniMatch" Foreground="#00ff9d" FontWeight="SemiBold"/><Run Text="(come() {" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 6 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="  int " Foreground="#ff7b72"/><Run Text="tokek = " Foreground="#e6edf3"/><Run Text="0" Foreground="#79c0ff"/><Run Text=";" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 7 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="  if " Foreground="#ff7b72"/><Run Text="(fawe &lt; " Foreground="#e6edf3"/><Run Text="null" Foreground="#79c0ff"/><Run Text=", " Foreground="#e6edf3"/><Run Text="null" Foreground="#79c0ff"/><Run Text=") {" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 8: Highlighted Vulnerable Line with Amber Squiggly Underline -->
+                                        <Border Background="#1f190d" BorderBrush="#f5a623" BorderThickness="2,0,0,0" Padding="4,0" HorizontalAlignment="Left">
+                                            <StackPanel>
+                                                <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="17">
+                                                    <Run Text="    soxe$lant = " Foreground="#e6edf3"/><Run Text="QueenSpeed" Foreground="#d2a8ff"/><Run Text="(panth[touek], " Foreground="#f5a623"/><Run Text="1" Foreground="#79c0ff"/><Run Text=");" Foreground="#e6edf3"/>
+                                                </TextBlock>
+                                                <TextBlock Text="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" FontFamily="Consolas" FontSize="9" Foreground="#f5a623" Margin="0,-5,0,-2"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <!-- Line 9 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="    return " Foreground="#ff7b72"/><Run Text="cyberator" Foreground="#00ff9d"/><Run Text="(name);" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 10 -->
+                                        <TextBlock Text="  }" FontFamily="Consolas" FontSize="12.5" Foreground="#e6edf3" LineHeight="18"/>
+                                        <!-- Line 11 -->
+                                        <TextBlock Text="" FontFamily="Consolas" FontSize="12.5" LineHeight="18"/>
+                                        <!-- Line 12 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="  const " Foreground="#ff7b72"/><Run Text="ri = " Foreground="#e6edf3"/><Run Text="QueenSpace" Foreground="#00ff9d"/><Run Text="(touch) {" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 13 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="  if " Foreground="#ff7b72"/><Run Text="(ri == " Foreground="#e6edf3"/><Run Text="null" Foreground="#79c0ff"/><Run Text=")" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 14 -->
+                                        <TextBlock FontFamily="Consolas" FontSize="12.5" LineHeight="18">
+                                            <Run Text="    patck = ri-&gt;" Foreground="#e6edf3"/><Run Text="smouse" Foreground="#f5a623"/><Run Text=";" Foreground="#e6edf3"/>
+                                        </TextBlock>
+                                        <!-- Line 15 -->
+                                        <TextBlock Text="}" FontFamily="Consolas" FontSize="12.5" Foreground="#e6edf3" LineHeight="18"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <!-- Code Minimap (Right Column) -->
+                                <Border Grid.Column="2" Background="#06090d" BorderBrush="#121c24" BorderThickness="1,0,0,0" Padding="6,8">
+                                    <Grid>
+                                        <!-- Translucent Viewport Slider -->
+                                        <Border Height="68" VerticalAlignment="Top" Background="#1200ff9d" BorderBrush="#2800ff9d" BorderThickness="1" CornerRadius="2"/>
+                                        <StackPanel Opacity="0.65" Margin="2,4,2,0">
+                                            <Border Height="2" Width="38" Background="#d2a8ff" HorizontalAlignment="Left" Margin="0,2"/>
+                                            <Border Height="2" Width="46" Background="#79c0ff" HorizontalAlignment="Left" Margin="0,2"/>
+                                            <Border Height="2" Width="24" Background="#4c5f72" HorizontalAlignment="Left" Margin="0,4,0,2"/>
+                                            <Border Height="2" Width="52" Background="#00ff9d" HorizontalAlignment="Left" Margin="0,2"/>
+                                            <Border Height="2" Width="34" Background="#8b9eb0" HorizontalAlignment="Left" Margin="6,2"/>
+                                            <Border Height="2" Width="44" Background="#ff7b72" HorizontalAlignment="Left" Margin="6,2"/>
+                                            <Border Height="3" Width="56" Background="#f5a623" HorizontalAlignment="Left" Margin="10,2"/>
+                                            <Border Height="2" Width="40" Background="#00ff9d" HorizontalAlignment="Left" Margin="10,2"/>
+                                            <Border Height="2" Width="16" Background="#8b9eb0" HorizontalAlignment="Left" Margin="6,2"/>
+                                            <Border Height="2" Width="48" Background="#00e5ff" HorizontalAlignment="Left" Margin="0,6,0,2"/>
+                                            <Border Height="2" Width="32" Background="#ff7b72" HorizontalAlignment="Left" Margin="6,2"/>
+                                            <Border Height="2" Width="42" Background="#f5a623" HorizontalAlignment="Left" Margin="10,2"/>
+                                            <Border Height="2" Width="20" Background="#4c5f72" HorizontalAlignment="Left" Margin="0,2"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
+
+                        <!-- 2. HEX INSPECTION SECTION -->
+                        <Border Grid.Row="1" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="28"/> <!-- Section Header -->
+                                    <RowDefinition Height="*"/>  <!-- Hex Matrix -->
+                                </Grid.RowDefinitions>
+
+                                <!-- Header: ⌄ HEX INSPECTION -->
+                                <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="10,0">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="⌄ " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}"/>
+                                            <TextBlock Text="HEX INSPECTION" FontFamily="Segoe UI, Consolas" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Button Content="❐" Style="{StaticResource ToolbarMiniBtn}" ToolTip="Copy Hex Dump"/>
+                                            <Button Content="⋯" Style="{StaticResource ToolbarMiniBtn}" ToolTip="Hex Options"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Hex Dump Table (Offset | 16 Hex Bytes | ASCII) -->
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="#070a0f" Padding="12,6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="74"/>  <!-- Offsets -->
+                                            <ColumnDefinition Width="*"/>   <!-- Hex Bytes -->
+                                            <ColumnDefinition Width="12"/>  <!-- Divider -->
+                                            <ColumnDefinition Width="135"/> <!-- ASCII Decode -->
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Offsets -->
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="0x7FFE..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                            <TextBlock Text="0x7FFE..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                            <TextBlock Text="0x7FFE..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                            <TextBlock Text="0x7FFE..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushCyberCyan}" FontWeight="Bold" LineHeight="19"/>
+                                            <TextBlock Text="0x7FFE..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" FontWeight="Bold" LineHeight="19"/>
+                                            <TextBlock Text="0x7FFE..." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                        </StackPanel>
+
+                                        <!-- Hex Bytes -->
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="00 01 02 03 04 05 06 0F 08 00 03 0F 00" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" LineHeight="19"/>
+                                            <TextBlock Text="00 00 00 00 00 00 00 00 00 00 00 00 00" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="19"/>
+                                            <TextBlock Text="00 00 00 00 00 00 00 00 00 00 00 00 00" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="19"/>
+                                            <TextBlock Text="8E 05 80 80 48 61 78 87 7C 83 80 83 92" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushCyberCyan}" FontWeight="SemiBold" LineHeight="19"/>
+                                            <TextBlock Text="88 82 88 76 8F 80 85 AC 90 BE 6A 8A 8E" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" FontWeight="SemiBold" LineHeight="19"/>
+                                            <TextBlock Text="00 83 00 00 00 00 00 00 00 00 00 00 00" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                        </StackPanel>
+
+                                        <!-- Vertical Separator -->
+                                        <Border Grid.Column="2" Width="1" Background="#182634" HorizontalAlignment="Center"/>
+
+                                        <!-- ASCII Column -->
+                                        <StackPanel Grid.Column="3">
+                                            <TextBlock Text="...U............" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                            <TextBlock Text="................" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="19"/>
+                                            <TextBlock Text="................" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextMuted}" LineHeight="19"/>
+                                            <TextBlock Text=".........HAW...." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushCyberCyan}" LineHeight="19"/>
+                                            <TextBlock Text="....n.R&amp;C.N.." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" LineHeight="19"/>
+                                            <TextBlock Text="W..............." FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" LineHeight="19"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <!-- 3. AST VULNERABILITY DETECTION SECTION -->
+                        <Grid Grid.Row="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="28"/> <!-- Section Header -->
+                                <RowDefinition Height="*"/>  <!-- AST Tree -->
+                            </Grid.RowDefinitions>
+
+                            <!-- Header: ⌄ AST VULNERABILITY DETECTION -->
+                            <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1" Padding="10,0">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="⌄ " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}"/>
+                                        <TextBlock Text="AST VULNERABILITY DETECTION" FontFamily="Segoe UI, Consolas" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                    </StackPanel>
+                                    <Button Content="⋯" Style="{StaticResource ToolbarMiniBtn}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Hierarchical AST Tree View -->
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="#070a0f" Padding="10,6">
+                                <StackPanel>
+                                    <TextBlock Text="⌄ AST VulnerabilityDetection" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,1"/>
+                                    <TextBlock Text="  ⌄ Result" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,1"/>
+                                    <TextBlock Text="    ⌄ Hemethods" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,1"/>
+
+                                    <!-- Full-width Highlighted Amber Vulnerability Row -->
+                                    <Border Background="#261c0a" BorderBrush="{StaticResource BrushAmber}" BorderThickness="3,0,0,0" Padding="8,3" Margin="18,3,0,3">
+                                        <TextBlock Text="VULNERABILITY DETECTED: Stack Buffer Overflow"
+                                                   FontFamily="Consolas" FontSize="12" FontWeight="Bold"
+                                                   Foreground="{StaticResource BrushAmber}"/>
+                                    </Border>
+
+                                    <TextBlock Text="      ⌄ HeaderLinked" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,1"/>
+                                    <TextBlock Text="        ⌄ SyntaxNumber" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" Margin="0,1"/>
+                                    <TextBlock Text="          text: 12" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,1"/>
+                                    <TextBlock Text="          length = 1" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" Margin="0,1"/>
+                                    <TextBlock Text="        ⌄ Perception" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,1"/>
+                                    <TextBlock FontFamily="Consolas" FontSize="12" Margin="0,1">
+                                        <Run Text="          Nimeors: " Foreground="#00ff9d"/><Run Text="&quot;ua&quot;" Foreground="#f5a623"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Splitter -->
+                <GridSplitter Grid.Column="2" Width="6" HorizontalAlignment="Stretch" Background="Transparent"/>
+
+                <!-- ===================================================== -->
+                <!-- COL 3: Right Pane (Qwen-Coder-Sec Assistant)          -->
+                <!-- ===================================================== -->
+                <Border Grid.Column="3"
+                        Background="{StaticResource BrushBgPane}"
+                        BorderBrush="#17493d"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="32"/> <!-- Assistant Tab Header -->
+                            <RowDefinition Height="*"/>  <!-- Conversation Stream -->
+                            <RowDefinition Height="52"/> <!-- Bottom Input Box -->
+                        </Grid.RowDefinitions>
+
+                        <!-- Assistant Tab Header -->
+                        <Border Grid.Row="0" Background="{StaticResource BrushBgSectionHeader}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Tab: Qwen-Coder-Sec Assistant × -->
+                                <Border Grid.Column="0" Background="{StaticResource BrushBgPane}" BorderBrush="{StaticResource BrushNeonEmerald}" BorderThickness="0,2,1,0" Padding="12,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="❈" FontFamily="Segoe UI Symbol" FontSize="12" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Qwen-Coder-Sec Assistant" FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}"/>
+                                        <TextBlock Text="×" FontFamily="Consolas" FontSize="13" Foreground="{StaticResource BrushTextMuted}" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Grid.Column="2" Content="⋯" Style="{StaticResource ToolbarMiniBtn}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Conversation Stream with Left Avatars -->
+                        <ScrollViewer x:Name="ChatScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="12,10">
+                            <StackPanel x:Name="ChatContainer">
+
+                                <!-- 1. USER PROMPT ROW -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="36"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="#102b2a" BorderBrush="#1f6f64" BorderThickness="1" VerticalAlignment="Top" Margin="0,2,0,0">
+                                        <TextBlock Text="👤" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrushNeonEmerald}"/>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="{StaticResource BrushBgCard}" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="4" Padding="12,9">
+                                        <TextBlock Text="What can you audit in this local stack frame and how do we patch the CWE-120 overflow?"
+                                                   FontFamily="Segoe UI, Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextPrimary}" TextWrapping="Wrap"/>
+                                    </Border>
+                                </Grid>
+
+                                <!-- 2. THOUGHT-PROCESS REASONING CARD -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="36"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="#0c2d23" BorderBrush="{StaticResource BrushNeonEmerald}" BorderThickness="1" VerticalAlignment="Top" Margin="0,2,0,0" Effect="{StaticResource EmeraldGlow}">
+                                        <TextBlock Text="❈" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrushNeonEmerald}"/>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="{StaticResource BrushBgThoughtCard}" BorderBrush="{StaticResource BrushNeonEmerald}" BorderThickness="2,1,1,1" CornerRadius="4" Padding="14,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Thought-process reasoning:" FontFamily="Segoe UI, Consolas" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="1. Thought-process reasoning: Inspecting CoeniMatch stack allocation and buffer index boundaries."
+                                                       FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="#b0c4d4" TextWrapping="Wrap" Margin="0,2"/>
+                                            <TextBlock Text="2. Tracing taint propagation from panth[touek] into QueenSpeed() at line 8."
+                                                       FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="#b0c4d4" TextWrapping="Wrap" Margin="0,2"/>
+                                            <TextBlock Text="3. Detecting unvalidated pointer arithmetic ('smouse') capable of corrupting adjacent RBP frame."
+                                                       FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="#b0c4d4" TextWrapping="Wrap" Margin="0,2"/>
+                                            <TextBlock Text="4. Synthesizing memory-safe bounds guard to isolate and remediate the stack overflow vector."
+                                                       FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="#b0c4d4" TextWrapping="Wrap" Margin="0,2"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                                <!-- 3. EXPLOIT SIMULATION LOG CARD -->
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="36"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="#291d0a" BorderBrush="{StaticResource BrushAmber}" BorderThickness="1" VerticalAlignment="Top" Margin="0,2,0,0" Effect="{StaticResource AmberGlow}">
+                                        <TextBlock Text="⚠" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrushAmber}"/>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="#0a0e14" BorderBrush="#26323f" BorderThickness="1" CornerRadius="4" Padding="14,10">
+                                        <Grid>
+                                            <Button Content="❐" Style="{StaticResource ToolbarMiniBtn}" HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnSimulate_Click" ToolTip="Run / Copy Exploit Trace"/>
+                                            <StackPanel>
+                                                <TextBlock Text="Exploit simulation log" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" Margin="0,0,0,6"/>
+                                                <TextBlock Text="Exploit &gt;- target: CoeniMatch::stack_frame (0x7FFE0040)" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextPrimary}" LineHeight="18"/>
+                                                <TextBlock Text="Exploit simulation heap..." FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" LineHeight="18"/>
+                                                <TextBlock Text="Exploit simulation heap..." FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" LineHeight="18"/>
+                                                <TextBlock Text="Exploit simulation: Log" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" LineHeight="18"/>
+                                                <TextBlock Text="Exploit simulation Log: /docsmend$tie/tc.stackOverflow-keys.d" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextPrimary}" LineHeight="18"/>
+                                                <TextBlock Text="Exploit simulation Long" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" LineHeight="18"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <!-- 4. AUTOMATED SECURE PATCH DIFFS CARD -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="36"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13" Background="#0c2d23" BorderBrush="{StaticResource BrushNeonEmerald}" BorderThickness="1" VerticalAlignment="Top" Margin="0,2,0,0" Effect="{StaticResource EmeraldGlow}">
+                                        <TextBlock Text="❈" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource BrushNeonEmerald}"/>
+                                    </Border>
+                                    <Border Grid.Column="1" Background="#091315" BorderBrush="{StaticResource BrushBorderEmerald}" BorderThickness="1" CornerRadius="4" Padding="14,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Automated secure patch diffs in Qwen-Coder-Sec. Automated secure patch diffs:"
+                                                       FontFamily="Segoe UI, Consolas" FontSize="12" Foreground="{StaticResource BrushTextPrimary}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                                            <!-- Inner Code Diff Box -->
+                                            <Border Background="{StaticResource BrushBgPatchCode}" BorderBrush="#164438" BorderThickness="1" CornerRadius="4" Padding="12,8">
+                                                <Grid>
+                                                    <Button Content="❐" Style="{StaticResource ToolbarMiniBtn}" HorizontalAlignment="Right" VerticalAlignment="Top" Click="BtnApplyPatch_Click" ToolTip="Apply Secure Patch"/>
+                                                    <StackPanel>
+                                                        <TextBlock FontFamily="Consolas" FontSize="12" LineHeight="18">
+                                                            <Run Text="export " Foreground="#79c0ff"/><Run Text="diff+spatch_008" Foreground="#00ff9d"/><Run Text="() {" Foreground="#e6edf3"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontFamily="Consolas" FontSize="12" LineHeight="18">
+                                                            <Run Text="  const " Foreground="#ff7b72"/><Run Text="fath = " Foreground="#e6edf3"/><Run Text="new" Foreground="#79c0ff"/><Run Text=".loap()" Foreground="#00ff9d"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontFamily="Consolas" FontSize="12" LineHeight="18">
+                                                            <Run Text="  for " Foreground="#ff7b72"/><Run Text="(thoughts = " Foreground="#e6edf3"/><Run Text="Stack.BufSafeBound" Foreground="#00ff9d"/><Run Text="()" Foreground="#e6edf3"/>
+                                                        </TextBlock>
+                                                        <TextBlock FontFamily="Consolas" FontSize="12" LineHeight="18">
+                                                            <Run Text="    inaceFlows = next.." Foreground="#e6edf3"/><Run Text="StackBufferOverflowGuard" Foreground="#00ff9d"/><Run Text=")" Foreground="#e6edf3"/>
+                                                        </TextBlock>
+                                                        <TextBlock Text="}" FontFamily="Consolas" FontSize="12" Foreground="#e6edf3" LineHeight="18"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                <TextBlock Text="✓ " FontFamily="Consolas" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}"/>
+                                                <TextBlock Text="Local Check (2)" FontFamily="Segoe UI, Consolas" FontSize="11" Foreground="{StaticResource BrushTextSecondary}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Bottom Prompt Input Bar (Matching Mockup) -->
+                        <Border Grid.Row="2" Background="#070b10" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="10,8">
+                            <Border Background="#0b1017" BorderBrush="#1c2d3a" BorderThickness="1" CornerRadius="4" Padding="10,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Neon Cursor Indicator -->
+                                    <Border Grid.Column="0" Width="2" Height="16" Background="{StaticResource BrushNeonEmerald}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                                    <!-- TextBox -->
+                                    <TextBox x:Name="TxtPrompt"
+                                             Grid.Column="1"
+                                             Background="Transparent"
+                                             Foreground="{StaticResource BrushTextPrimary}"
+                                             CaretBrush="{StaticResource BrushNeonEmerald}"
+                                             BorderThickness="0"
+                                             FontFamily="Segoe UI, Consolas"
+                                             FontSize="12.5"
+                                             VerticalContentAlignment="Center"
+                                             KeyDown="TxtPrompt_KeyDown"
+                                             Text="Type a message..."
+                                             GotFocus="TxtPrompt_GotFocus"
+                                             LostFocus="TxtPrompt_LostFocus"/>
+
+                                    <!-- Right Icons inside Input Box -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Content="☺" Style="{StaticResource ToolbarMiniBtn}" FontSize="13" ToolTip="Insert Security Prompt Template" Click="BtnTemplate_Click"/>
+                                        <Button Content="➤" Style="{StaticResource ToolbarMiniBtn}" FontSize="14" Foreground="{StaticResource BrushNeonEmerald}" ToolTip="Send to Qwen-Coder-Sec" Click="BtnSend_Click"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================================= -->
+            <!-- ROW 2: Bottom Real-Time Telemetry HUD Bar                 -->
+            <!-- ========================================================= -->
+            <Border Grid.Row="2"
+                    Background="{StaticResource BrushBgHeader}"
+                    BorderBrush="{StaticResource BrushBorderSubtle}"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,6,6">
+                <Grid Margin="14,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left Telemetry Items -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Glowing Status Ring -->
+                        <Border Width="12" Height="12" CornerRadius="6" BorderBrush="{StaticResource BrushNeonEmerald}" BorderThickness="2" Margin="0,0,10,0" VerticalAlignment="Center" Effect="{StaticResource EmeraldGlow}"/>
+
+                        <!-- MODEL -->
+                        <TextBlock Text="MODEL: " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Qwen-Coder-Sec 7B" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="  |  " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+
+                        <!-- VRAM -->
+                        <TextBlock Text="VRAM: " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="2.8 GB" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" VerticalAlignment="Center"/>
+                        <TextBlock Text=" / 4.0 GB" FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="  |  " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+
+                        <!-- INFERENCE -->
+                        <TextBlock Text="INFERENCE: " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TxtSpeed" Text="52 tok/s" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="  |  " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+
+                        <!-- GPU TEMP -->
+                        <TextBlock Text="GPU: " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="56°C" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushAmber}" VerticalAlignment="Center"/>
+
+                        <TextBlock Text="  |  " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+
+                        <!-- SANDBOX -->
+                        <TextBlock Text="SANDBOX: " FontFamily="Consolas" FontSize="12.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                        <TextBlock Text="ISOLATED" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Right Status Indicator: CASTED -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🖧  0  ⚡ " FontFamily="Consolas, Segoe UI Symbol" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Text="CASTED" FontFamily="Consolas" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource BrushNeonEmerald}" VerticalAlignment="Center" Effect="{StaticResource EmeraldGlow}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Subtle Hardware Scanline Overlay across entire window -->
+            <Border Grid.RowSpan="3"
+                    Background="{StaticResource ScanlineBrush}"
+                    IsHitTestVisible="False"
+                    CornerRadius="6"/>
         </Grid>
     </Border>
 </Window>
