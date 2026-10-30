@@ -3,71 +3,75 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Core Palette Colors matching Prototype -->
-        <Color x:Key="ColorBgRoot">#05080c</Color>
-        <Color x:Key="ColorBgHeader">#070a0f</Color>
-        <Color x:Key="ColorBgSidebar">#070b10</Color>
-        <Color x:Key="ColorBgPane">#090d13</Color>
-        <Color x:Key="ColorBgSectionHeader">#0d131b</Color>
-        <Color x:Key="ColorBgCard">#0c1219</Color>
-        <Color x:Key="ColorBgThoughtCard">#081715</Color>
-        <Color x:Key="ColorBgPatchCode">#061110</Color>
-        <Color x:Key="ColorBorderSubtle">#17222d</Color>
-        <Color x:Key="ColorBorderEmerald">#195946</Color>
-        <Color x:Key="ColorNeonEmerald">#00ff9d</Color>
-        <Color x:Key="ColorCyberCyan">#00e5ff</Color>
-        <Color x:Key="ColorAmber">#f5a623</Color>
-        <Color x:Key="ColorTextPrimary">#e6edf3</Color>
-        <Color x:Key="ColorTextSecondary">#8b9eb0</Color>
-        <Color x:Key="ColorTextMuted">#4c5f72</Color>
+        <!-- Serious Architectural Dark Engineering Palette (Muted, Refined, Non-Saturated) -->
+        <Color x:Key="ColorBgRoot">#0b0e14</Color>
+        <Color x:Key="ColorBgHeader">#0f131a</Color>
+        <Color x:Key="ColorBgSidebar">#0f131a</Color>
+        <Color x:Key="ColorBgDrawer">#11161e</Color>
+        <Color x:Key="ColorBgPane">#0d1117</Color>
+        <Color x:Key="ColorBgSectionHeader">#131820</Color>
+        <Color x:Key="ColorBgCard">#141a23</Color>
+        <Color x:Key="ColorBgElevated">#19202b</Color>
 
-        <!-- Brushes -->
+        <Color x:Key="ColorBorderSubtle">#212832</Color>
+        <Color x:Key="ColorBorderStrong">#2c3543</Color>
+        <Color x:Key="ColorBorderActive">#388bfd</Color>
+
+        <!-- Refined Professional Accents & Diff Colors -->
+        <Color x:Key="ColorAccentBlue">#4493f8</Color>
+        <Color x:Key="ColorAccentSage">#3fb950</Color>
+        <Color x:Key="ColorDiffAddedBg">#13261e</Color>
+        <Color x:Key="ColorDiffAddedBar">#2ea043</Color>
+        <Color x:Key="ColorDiffRemovedBg">#2c1519</Color>
+        <Color x:Key="ColorDiffRemovedBar">#e5534b</Color>
+        <Color x:Key="ColorWarningMuted">#d29922</Color>
+
+        <!-- Typography Colors -->
+        <Color x:Key="ColorTextPrimary">#e6edf3</Color>
+        <Color x:Key="ColorTextSecondary">#8b949e</Color>
+        <Color x:Key="ColorTextMuted">#545d68</Color>
+
+        <!-- SolidColorBrushes -->
         <SolidColorBrush x:Key="BrushBgRoot" Color="{StaticResource ColorBgRoot}"/>
         <SolidColorBrush x:Key="BrushBgHeader" Color="{StaticResource ColorBgHeader}"/>
         <SolidColorBrush x:Key="BrushBgSidebar" Color="{StaticResource ColorBgSidebar}"/>
+        <SolidColorBrush x:Key="BrushBgDrawer" Color="{StaticResource ColorBgDrawer}"/>
         <SolidColorBrush x:Key="BrushBgPane" Color="{StaticResource ColorBgPane}"/>
         <SolidColorBrush x:Key="BrushBgSectionHeader" Color="{StaticResource ColorBgSectionHeader}"/>
         <SolidColorBrush x:Key="BrushBgCard" Color="{StaticResource ColorBgCard}"/>
-        <SolidColorBrush x:Key="BrushBgThoughtCard" Color="{StaticResource ColorBgThoughtCard}"/>
-        <SolidColorBrush x:Key="BrushBgPatchCode" Color="{StaticResource ColorBgPatchCode}"/>
+        <SolidColorBrush x:Key="BrushBgElevated" Color="{StaticResource ColorBgElevated}"/>
+
         <SolidColorBrush x:Key="BrushBorderSubtle" Color="{StaticResource ColorBorderSubtle}"/>
-        <SolidColorBrush x:Key="BrushBorderEmerald" Color="{StaticResource ColorBorderEmerald}"/>
-        <SolidColorBrush x:Key="BrushNeonEmerald" Color="{StaticResource ColorNeonEmerald}"/>
-        <SolidColorBrush x:Key="BrushCyberCyan" Color="{StaticResource ColorCyberCyan}"/>
-        <SolidColorBrush x:Key="BrushAmber" Color="{StaticResource ColorAmber}"/>
+        <SolidColorBrush x:Key="BrushBorderStrong" Color="{StaticResource ColorBorderStrong}"/>
+        <SolidColorBrush x:Key="BrushBorderActive" Color="{StaticResource ColorBorderActive}"/>
+
+        <SolidColorBrush x:Key="BrushAccentBlue" Color="{StaticResource ColorAccentBlue}"/>
+        <SolidColorBrush x:Key="BrushAccentSage" Color="{StaticResource ColorAccentSage}"/>
+        <SolidColorBrush x:Key="BrushDiffAddedBg" Color="{StaticResource ColorDiffAddedBg}"/>
+        <SolidColorBrush x:Key="BrushDiffAddedBar" Color="{StaticResource ColorDiffAddedBar}"/>
+        <SolidColorBrush x:Key="BrushDiffRemovedBg" Color="{StaticResource ColorDiffRemovedBg}"/>
+        <SolidColorBrush x:Key="BrushDiffRemovedBar" Color="{StaticResource ColorDiffRemovedBar}"/>
+        <SolidColorBrush x:Key="BrushWarningMuted" Color="{StaticResource ColorWarningMuted}"/>
+
         <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}"/>
         <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}"/>
         <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}"/>
 
-        <!-- CRT Scanline Hardware Overlay Brush -->
-        <DrawingBrush x:Key="ScanlineBrush" TileMode="Tile" Viewport="0,0,4,4" ViewportUnits="Absolute">
-            <DrawingBrush.Drawing>
-                <GeometryDrawing Brush="#0600ff9d">
-                    <GeometryDrawing.Geometry>
-                        <RectangleGeometry Rect="0,0,4,1"/>
-                    </GeometryDrawing.Geometry>
-                </GeometryDrawing>
-            </DrawingBrush.Drawing>
-        </DrawingBrush>
-
-        <!-- Neon Glow DropShadow -->
-        <DropShadowEffect x:Key="EmeraldGlow" Color="#00ff9d" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
-        <DropShadowEffect x:Key="AmberGlow" Color="#f5a623" BlurRadius="8" ShadowDepth="0" Opacity="0.3"/>
-
-        <!-- Custom Sleek Dark ScrollBar -->
+        <!-- Architectural Minimalist ScrollBar -->
         <Style TargetType="{x:Type ScrollBar}">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Width" Value="6"/>
+            <Setter Property="Width" Value="7"/>
+            <Setter Property="Height" Value="7"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
-                        <Grid Background="Transparent" Width="6">
+                        <Grid Background="Transparent">
                             <Track x:Name="PART_Track" IsDirectionReversed="true">
                                 <Track.Thumb>
                                     <Thumb>
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="{x:Type Thumb}">
-                                                <Border Background="#1f313d" CornerRadius="3" Margin="1,0"/>
+                                                <Border Background="#28313e" CornerRadius="3" Margin="1"/>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
@@ -79,15 +83,15 @@
             </Setter>
         </Style>
 
-        <!-- Left Activity Sidebar Button Style -->
+        <!-- Sidebar Rail Icon Button -->
         <Style x:Key="SidebarIconButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource BrushTextMuted}"/>
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Width" Value="36"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Margin" Value="0,3"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -96,13 +100,13 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6">
+                                CornerRadius="5">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#101a24"/>
-                                <Setter Property="Foreground" Value="{StaticResource BrushNeonEmerald}"/>
+                                <Setter TargetName="bdr" Property="Background" Value="#18202b"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -110,34 +114,26 @@
             </Setter>
         </Style>
 
-        <!-- Active Left Sidebar Button Style -->
-        <Style x:Key="SidebarIconButtonActive" TargetType="Button" BasedOn="{StaticResource SidebarIconButton}">
-            <Setter Property="Background" Value="#0b241d"/>
-            <Setter Property="Foreground" Value="{StaticResource BrushNeonEmerald}"/>
-            <Setter Property="BorderBrush" Value="#00ff9d"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <!-- Minimalist Window Control Button -->
+        <!-- Window Control Button -->
         <Style x:Key="WindowControlBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="FontFamily" Value="Segoe UI, Consolas"/>
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="3">
+                        <Border x:Name="bdr" Background="{TemplateBinding Background}" CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#18222d"/>
-                                <Setter Property="Foreground" Value="#ffffff"/>
+                                <Setter TargetName="bdr" Property="Background" Value="#1d2633"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -145,16 +141,16 @@
             </Setter>
         </Style>
 
-        <!-- Subtle Mini Toolbar Icon Button -->
+        <!-- Subtle Toolbar Action Button -->
         <Style x:Key="ToolbarMiniBtn" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{StaticResource BrushTextSecondary}"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Padding" Value="7,3"/>
             <Setter Property="Margin" Value="2,0"/>
-            <Setter Property="FontFamily" Value="Consolas, Segoe UI Symbol"/>
-            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontFamily" Value="Segoe UI, Consolas"/>
+            <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -163,15 +159,15 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="3"
+                                CornerRadius="4"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bdr" Property="Background" Value="#13222b"/>
-                                <Setter TargetName="bdr" Property="BorderBrush" Value="#1d4d42"/>
-                                <Setter Property="Foreground" Value="{StaticResource BrushNeonEmerald}"/>
+                                <Setter TargetName="bdr" Property="Background" Value="#1a222d"/>
+                                <Setter TargetName="bdr" Property="BorderBrush" Value="#2c3646"/>
+                                <Setter Property="Foreground" Value="{StaticResource BrushTextPrimary}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
