@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# ==========================================
+# secdev: Git Commit-Msg Conventional Commits Validator
+# ==========================================
+
+MSG_FILE="$1"
+COMMIT_MSG=$(head -n 1 "$MSG_FILE")
+
+PATTERN="^(feat|fix|sec|perf|refactor|docs|test|chore|ci)(\([a-zA-Z0-9_-]+\))?: .{1,100}$"
+
+if ! echo "$COMMIT_MSG" | grep -Eq "$PATTERN"; then
+    echo "=========================================================="
+    echo "ERROR: Invalid commit message format!"
+    echo "Your commit message: '$COMMIT_MSG'"
+    echo ""
+    echo "Must follow Conventional Commits format:"
+    echo "  <type>(<optional-scope>): <description>"
+    echo ""
+    echo "Valid types:"
+    echo "  feat:      New feature (e.g., 'feat(engine): add SDF font atlas')"
+    echo "  fix:       Bug fix (e.g., 'fix(cli): parse terminal arguments')"
+    echo "  sec:       Security patch / hardening"
+    echo "  perf:      Performance optimization"
+    echo "  refactor:  Code refactoring without behavioral change"
+    echo "  docs:      Documentation changes"
+    echo "  chore:     Maintenance or dependency update"
+    echo "  ci:        GitHub Actions or automation scripts"
+    echo "=========================================================="
+    exit 1
+fi
+exit 0

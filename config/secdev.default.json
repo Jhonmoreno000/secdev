@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "engine": {
+    "title": "secdev // Tactical AI Workstation",
+    "window": {
+      "width": 1600,
+      "height": 960,
+      "vsync": true,
+      "target_fps": 120,
+      "borderless": true,
+      "resizable": true
+    },
+    "renderer": {
+      "backend": "opengl_4_5",
+      "msaa_samples": 4,
+      "enable_scanlines": true,
+      "scanline_opacity": 0.08,
+      "bloom_intensity": 0.25,
+      "font_size_pt": 14,
+      "font_family": "JetBrains Mono"
+    },
+    "theme": {
+      "background": "#0d1117",
+      "surface": "#161b22",
+      "border": "#30363d",
+      "accent_primary": "#00ff9d",
+      "accent_secondary": "#00e5ff",
+      "warning": "#d29922",
+      "danger": "#f85149",
+      "text_primary": "#f0f6fc",
+      "text_muted": "#8b949e"
+    }
+  },
+  "ai": {
+    "model_path": "models/qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+    "context_size": 32768,
+    "gpu_layers_offload": 28,
+    "threads": 8,
+    "temperature": 0.2,
+    "top_p": 0.95,
+    "repeat_penalty": 1.1,
+    "offline_mode_enforced": true
+  },
+  "telemetry": {
+    "poll_interval_ms": 500,
+    "track_gpu_vram": true,
+    "track_inference_speed": true,
+    "track_temperature": true
+  }
+}

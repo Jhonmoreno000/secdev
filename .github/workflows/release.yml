@@ -1,0 +1,64 @@
+name: Release Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release Binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: secdev-windows-x64.zip
+            binary_path: build/secdev.exe
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC Toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@v1
+
+      - name: Build Standalone Release Binary
+        run: |
+          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel
+
+      - name: Package Binary & Default Configs
+        shell: pwsh
+        run: |
+          mkdir dist
+          Copy-Item build\secdev.exe dist\
+          Copy-Item -Recurse config dist\
+          Copy-Item -Recurse scripts dist\
+          Copy-Item README.md dist\
+          Copy-Item LICENSE dist\
+          Compress-Archive -Path dist\* -DestinationPath ${{ matrix.artifact_name }}
+
+      - name: Generate SHA256 Checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Path ${{ matrix.artifact_name }} -Algorithm SHA256).Hash
+          "$hash  ${{ matrix.artifact_name }}" | Out-File -Encoding utf8 SHA256SUMS.txt
+
+      - name: Create GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artifact_name }}
+            SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false

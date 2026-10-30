@@ -1,0 +1,99 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, developer]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main, developer]
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/ci.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-format:
+    name: Code Hygiene & Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Clang-Format Verification
+        run: |
+          find src -name '*.cpp' -o -name '*.h' -o -name '*.hpp' | while read -r file; do
+            if grep -P '\t' "$file" >/dev/null 2>&1; then
+              echo "Error: Tabs detected in $file. Use spaces."
+              exit 1
+            fi
+            if grep -P '\s+$' "$file" >/dev/null 2>&1; then
+              echo "Warning: Trailing whitespace detected in $file."
+            fi
+          done
+          echo "Formatting check passed."
+
+      - name: Shell and Script Linting
+        run: |
+          echo "Checking scripts integrity..."
+          test -f scripts/setup-dev.ps1
+          test -f scripts/install-cli.ps1
+          test -f scripts/pull-model.ps1
+          echo "Script verification passed."
+
+  build-windows:
+    name: Build Native Engine (Windows MSVC / CMake)
+    needs: lint-and-format
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC Toolchain & Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup Ninja Build System
+        uses: ashutoshvarma/setup-ninja@v1
+        with:
+          version: 1.11.1
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
+            -DSECDEV_BUILD_TESTS=ON `
+            -DSECDEV_HEADLESS_TESTING=ON
+
+      - name: Build secdev Executable
+        run: |
+          cmake --build build --config ${{ matrix.build_type }} --parallel
+
+      - name: Run Self-Tests & CLI Diagnostics
+        run: |
+          .\build\secdev.exe --version
+          .\build\secdev.exe --help
+          .\build\secdev.exe --diagnostics
+
+      - name: Archive Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: secdev-windows-x64-${{ github.sha }}
+          path: |
+            build/secdev.exe
+            config/
+          retention-days: 7

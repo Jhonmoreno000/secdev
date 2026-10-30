@@ -1,0 +1,27 @@
+area/engine:
+  - changed-files:
+    - any-glob-to-any-file: 'src/engine/**'
+
+area/ai-inference:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/ai/**'
+      - 'models/**'
+
+area/security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/security/**'
+      - 'SECURITY.md'
+
+area/cli:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/main.cpp'
+      - 'src/core/**'
+
+area/ci-cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+      - 'scripts/**'
