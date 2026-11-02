@@ -50,7 +50,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Apply Subsystem Labels
-        uses: actions/labeler@v5
+        uses: actions/labeler@v7
         with:
           repo-token: "${{ secrets.GITHUB_TOKEN }}"
           configuration-path: .github/labeler.yml
