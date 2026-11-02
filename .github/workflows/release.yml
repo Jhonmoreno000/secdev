@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -54,7 +54,7 @@ jobs:
           "$hash  ${{ matrix.artifact_name }}" | Out-File -Encoding utf8 SHA256SUMS.txt
 
       - name: Create GitHub Release & Upload Assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ${{ matrix.artifact_name }}
