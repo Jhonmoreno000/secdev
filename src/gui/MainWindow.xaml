@@ -45,13 +45,13 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                             <Border Width="8" Height="8" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <TextBlock Text="secdev"
-                                       FontFamily="Segoe UI Variable Display, Segoe UI"
+                                       FontFamily="Arial"
                                        FontSize="13.5"
-                                       FontWeight="SemiBold"
+                                       FontWeight="Bold"
                                        Foreground="{StaticResource BrushTextPrimary}"/>
                             <TextBlock x:Name="TxtHeaderSubtitle"
-                                       Text="  —  Estación de Ingeniería de Software y Ciberseguridad (IA Local)"
-                                       FontFamily="Segoe UI"
+                                       Text="  —  Estación de Ingeniería de Software y Ciberseguridad (IA Local + RAG)"
+                                       FontFamily="Arial"
                                        FontSize="12"
                                        TextTrimming="CharacterEllipsis"
                                        Foreground="{StaticResource BrushTextSecondary}"
@@ -60,10 +60,10 @@
 
                         <!-- Acciones Rápidas de Proyecto, IA Local y Dimensiones -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
-                            <Button Content="⬡ Subir Archivos" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Subir o importar archivos de código fuente del usuario al espacio de trabajo"/>
-                            <Button Content="📂 Abrir Proyecto" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click" ToolTip="Seleccionar carpeta de proyecto local"/>
-                            <Button Content="⑂ Clonar Repositorio" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavGit_Click" ToolTip="Clonar un repositorio Git remoto o gestionar control de cambios"/>
-                            <Button Content="⊞ Especialidades (8)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavSkills_Click" ToolTip="Catálogo de especialidades técnicas e ISO para ahorro de tokens"/>
+                            <Button Content="[+] Subir Archivos" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Subir o importar archivos de código fuente del usuario al espacio de trabajo"/>
+                            <Button Content="[>] Abrir Proyecto" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click" ToolTip="Seleccionar carpeta de proyecto local"/>
+                            <Button Content="[Git] Clonar Repositorio" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavGit_Click" ToolTip="Clonar un repositorio Git remoto o gestionar control de cambios"/>
+                            <Button Content="[ESP] Especialidades (12)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavSkills_Click" ToolTip="Catálogo de especialidades técnicas e ISO para ahorro de tokens"/>
 
                             <Border Background="#141a23" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="1" CornerRadius="4" Padding="8,2" Margin="6,0,6,0" VerticalAlignment="Center">
                                 <TextBlock x:Name="TxtDiffSummaryBadge"
@@ -87,8 +87,8 @@
                         <!-- Controles de Ventana -->
                         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                             <Button Content="—" Style="{StaticResource WindowControlBtn}" Click="BtnMinimize_Click" ToolTip="Minimizar ventana"/>
-                            <Button x:Name="BtnMaxRestore" Content="▢" Style="{StaticResource WindowControlBtn}" Click="BtnMaximize_Click" ToolTip="Maximizar o restaurar ventana"/>
-                            <Button Content="✕" Style="{StaticResource WindowControlBtn}" Click="BtnClose_Click" ToolTip="Cerrar estación de trabajo"/>
+                            <Button x:Name="BtnMaxRestore" Content="[ ]" Style="{StaticResource WindowControlBtn}" Click="BtnMaximize_Click" ToolTip="Maximizar o restaurar ventana"/>
+                            <Button Content="X" Style="{StaticResource WindowControlBtn}" Click="BtnClose_Click" ToolTip="Cerrar estación de trabajo"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -122,7 +122,7 @@
                                 <Grid>
                                     <Border x:Name="IndExplorer" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
                                     <Button x:Name="BtnNavExplorer" Style="{StaticResource SidebarIconButton}" Click="BtnNavExplorer_Click" ToolTip="Explorador de Archivos del Usuario (Subir, Crear y Gestionar Archivos)">
-                                        <TextBlock Text="❐" FontSize="14" FontFamily="Segoe UI Symbol"/>
+                                        <TextBlock Text="DIR" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                     </Button>
                                 </Grid>
 
@@ -130,7 +130,7 @@
                                 <Grid>
                                     <Border x:Name="IndSearch" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
                                     <Button x:Name="BtnNavSearch" Style="{StaticResource SidebarIconButton}" Click="BtnNavSearch_Click" ToolTip="Búsqueda Léxica de Símbolos y Patrones en el Proyecto">
-                                        <TextBlock Text="⌕" FontSize="16" FontFamily="Segoe UI Symbol"/>
+                                        <TextBlock Text="BUS" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                     </Button>
                                 </Grid>
 
@@ -138,7 +138,7 @@
                                 <Grid>
                                     <Border x:Name="IndGit" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
                                     <Button x:Name="BtnNavGit" Style="{StaticResource SidebarIconButton}" Click="BtnNavGit_Click" ToolTip="Clonación de Repositorios Git y Control de Diferencias (Diff)">
-                                        <TextBlock Text="⑂" FontSize="14" FontFamily="Segoe UI Symbol"/>
+                                        <TextBlock Text="GIT" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                     </Button>
                                 </Grid>
 
@@ -146,7 +146,7 @@
                                 <Grid>
                                     <Border x:Name="IndSkills" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
                                     <Button x:Name="BtnNavSkills" Style="{StaticResource SidebarIconButton}" Click="BtnNavSkills_Click" ToolTip="Catálogo de Especialidades de Ingeniería e ISO (Optimizador de Contexto)">
-                                        <TextBlock Text="⊞" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                                        <TextBlock Text="ESP" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                     </Button>
                                 </Grid>
 
@@ -154,25 +154,25 @@
                                 <Grid>
                                     <Border x:Name="IndAudit" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
                                     <Button x:Name="BtnNavAudit" Style="{StaticResource SidebarIconButton}" Click="BtnNavAudit_Click" ToolTip="Ejecutar Auditoría Estática SAST (OWASP/CWE) y Evaluación ISO/IEC 25010">
-                                        <TextBlock Text="▷" FontSize="14" FontFamily="Segoe UI Symbol"/>
+                                        <TextBlock Text="SEC" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                     </Button>
                                 </Grid>
 
                                 <!-- 6. Conmutar Disposición de Paneles -->
                                 <Button Style="{StaticResource SidebarIconButton}" Click="BtnToggleLayout_Click" ToolTip="Alternar Disposición de Paneles (Paralelo Horizontal / Apilado Vertical)">
-                                    <TextBlock Text="◫" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                                    <TextBlock Text="PAN" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                 </Button>
                             </StackPanel>
 
                             <!-- Iconos Inferiores -->
                             <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,8">
                                 <Button Style="{StaticResource SidebarIconButton}" Click="BtnConfirmChanges_Click" ToolTip="Confirmar y Aceptar los Cambios Actuales como Línea Base">
-                                    <TextBlock Text="✓" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                                    <TextBlock Text="OK" FontSize="11" FontWeight="Bold" FontFamily="Arial" Foreground="{StaticResource BrushAccentSage}"/>
                                 </Button>
                                 <Grid>
                                     <Border x:Name="IndSettings" Width="2" Height="20" Background="{StaticResource BrushAccentBlue}" HorizontalAlignment="Left" Margin="-5,0,0,0" Visibility="Collapsed"/>
                                     <Button x:Name="BtnNavSettings" Style="{StaticResource SidebarIconButton}" Click="BtnNavSettings_Click" ToolTip="Configuración del Motor de Inferencia Local (Qwen 2.5 Coder 7B) y Editor">
-                                        <TextBlock Text="⚙" FontSize="15" FontFamily="Segoe UI Symbol"/>
+                                        <TextBlock Text="CFG" FontSize="11" FontWeight="Bold" FontFamily="Arial"/>
                                     </Button>
                                 </Grid>
                             </StackPanel>
@@ -204,8 +204,8 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="TxtDrawerTitle" Grid.Column="0" Text="EXPLORADOR DEL PROYECTO" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                    <Button Grid.Column="1" Content="✕" Style="{StaticResource ToolbarMiniBtn}" VerticalAlignment="Center" Click="BtnCloseDrawer_Click" ToolTip="Cerrar panel lateral"/>
+                                    <TextBlock x:Name="TxtDrawerTitle" Grid.Column="0" Text="EXPLORADOR DEL PROYECTO" FontFamily="Arial" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <Button Grid.Column="1" Content="X" Style="{StaticResource ToolbarMiniBtn}" VerticalAlignment="Center" Click="BtnCloseDrawer_Click" ToolTip="Cerrar panel lateral"/>
                                 </Grid>
                             </Border>
 
@@ -213,10 +213,10 @@
                             <Border x:Name="DrawerSubToolbar" Grid.Row="1" Padding="8,6" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,0,0,1">
                                 <StackPanel>
                                     <WrapPanel x:Name="DrawerExplorerActions" Orientation="Horizontal">
-                                        <Button Content="⬡ Subir Archivos" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Importar archivos desde el equipo"/>
-                                        <Button Content="+ Nuevo Archivo" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNewFile_Click" ToolTip="Crear un nuevo archivo en el espacio de trabajo"/>
-                                        <Button Content="📂 Abrir Carpeta" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click" ToolTip="Abrir directorio completo"/>
-                                        <Button Content="💾 Guardar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSaveFile_Click" ToolTip="Guardar archivo activo"/>
+                                        <Button Content="[+] Subir" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Importar archivos desde el equipo"/>
+                                        <Button Content="[+] Nuevo" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNewFile_Click" ToolTip="Crear un nuevo archivo en el espacio de trabajo"/>
+                                        <Button Content="[>] Abrir Carpeta" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click" ToolTip="Abrir directorio completo"/>
+                                        <Button Content="[S] Guardar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSaveFile_Click" ToolTip="Guardar archivo activo"/>
                                     </WrapPanel>
 
                                     <TextBox x:Name="TxtDrawerSearch"
@@ -227,13 +227,13 @@
                                              BorderBrush="{StaticResource BrushBorderStrong}"
                                              BorderThickness="1"
                                              Padding="6,4"
-                                             FontFamily="Segoe UI"
+                                             FontFamily="Arial"
                                              FontSize="12"
                                              TextChanged="TxtDrawerSearch_TextChanged"/>
 
                                     <!-- Panel de Clonación de Repositorios Git -->
                                     <StackPanel x:Name="DrawerGitClonePanel" Visibility="Collapsed">
-                                        <TextBlock Text="URL del Repositorio Git (HTTPS / SSH / Ruta Local):" FontFamily="Segoe UI" FontSize="11" Foreground="{StaticResource BrushTextSecondary}" Margin="2,0,0,4"/>
+                                        <TextBlock Text="URL del Repositorio Git (HTTPS / SSH / Ruta Local):" FontFamily="Arial" FontSize="11" Foreground="{StaticResource BrushTextSecondary}" Margin="2,0,0,4"/>
                                         <TextBox x:Name="TxtGitCloneUrl"
                                                  Background="#0b0e14"
                                                  Foreground="{StaticResource BrushTextPrimary}"
@@ -249,8 +249,8 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <Button Grid.Column="0" Content="⑂ Clonar y Cargar Proyecto" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="SemiBold" Click="BtnExecuteGitClone_Click"/>
-                                            <Button Grid.Column="1" Content="📂 Directorio Local" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click"/>
+                                            <Button Grid.Column="0" Content="[Git] Clonar y Cargar Proyecto" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="SemiBold" Click="BtnExecuteGitClone_Click"/>
+                                            <Button Grid.Column="1" Content="[>] Directorio Local" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenFolder_Click"/>
                                         </Grid>
                                     </StackPanel>
                                 </StackPanel>
@@ -319,11 +319,11 @@
 
                                             <!-- Barra de Acciones del Editor -->
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0">
-                                                <Button Content="⬡ Subir" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Subir e importar archivo(s) del usuario al editor"/>
-                                                <Button Content="+ Nuevo" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNewFile_Click" ToolTip="Crear un archivo nuevo en el espacio de trabajo"/>
-                                                <Button x:Name="BtnDiffModeToggle" Content="⇄ Diferencias: ACTIVO" Style="{StaticResource ToolbarMiniBtn}" Click="BtnToggleDiffView_Click" ToolTip="Mostrar u ocultar líneas añadidas en verde (+) y eliminadas en rojo (-)"/>
-                                                <Button Content="💾 Guardar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSaveFile_Click" ToolTip="Guardar cambios en disco (Ctrl+S)"/>
-                                                <Button Content="⚡ Remediación IA en Vivo" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" FontWeight="SemiBold" Click="BtnApplyPatch_Click" ToolTip="Aplicar refactorización y corrección de vulnerabilidades mostrando el progreso paso a paso en el editor"/>
+                                                <Button Content="[+] Subir" Style="{StaticResource ToolbarMiniBtn}" Click="BtnOpenExternalFile_Click" ToolTip="Subir e importar archivo(s) del usuario al editor"/>
+                                                <Button Content="[+] Nuevo" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNewFile_Click" ToolTip="Crear un archivo nuevo en el espacio de trabajo"/>
+                                                <Button x:Name="BtnDiffModeToggle" Content="[DIFF] Diferencias: ACTIVO" Style="{StaticResource ToolbarMiniBtn}" Click="BtnToggleDiffView_Click" ToolTip="Mostrar u ocultar líneas añadidas en verde (+) y eliminadas en rojo (-)"/>
+                                                <Button Content="[Guardar]" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSaveFile_Click" ToolTip="Guardar cambios en disco (Ctrl+S)"/>
+                                                <Button Content="[AUTO] Remediación IA en Vivo" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" FontWeight="SemiBold" Click="BtnApplyPatch_Click" ToolTip="Aplicar refactorización y corrección de vulnerabilidades mostrando el progreso paso a paso en el editor"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -340,7 +340,7 @@
                                             <TextBlock x:Name="TxtBreadcrumbPath"
                                                        Grid.Column="0"
                                                        Text="Espacio de Trabajo › Sin archivo seleccionado"
-                                                       FontFamily="Segoe UI, Consolas"
+                                                       FontFamily="Arial, Consolas"
                                                        FontSize="11.5"
                                                        Foreground="{StaticResource BrushTextSecondary}"
                                                        VerticalAlignment="Center"
@@ -390,9 +390,9 @@
                                                     <Border x:Name="DotProgresoIA" Width="7" Height="7" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                     <TextBlock x:Name="TxtFaseProgresoIA"
                                                                Text="Aplicando modificaciones del modelo de IA en el editor..."
-                                                               FontFamily="Segoe UI, Consolas"
+                                                               FontFamily="Arial, Consolas"
                                                                FontSize="11.5"
-                                                               FontWeight="SemiBold"
+                                                               FontWeight="Bold"
                                                                TextTrimming="CharacterEllipsis"
                                                                Foreground="{StaticResource BrushTextPrimary}"/>
                                                 </StackPanel>
@@ -409,13 +409,13 @@
 
                                                 <!-- Botones de Confirmación o Reversión de Cambios -->
                                                 <StackPanel x:Name="PanelBotonesConfirmacion" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
-                                                    <Button Content="✓ Confirmar y Guardar Cambios"
+                                                    <Button Content="[OK] Confirmar y Guardar Cambios"
                                                             Style="{StaticResource ToolbarMiniBtn}"
                                                             Foreground="{StaticResource BrushAccentSage}"
-                                                            FontWeight="SemiBold"
+                                                            FontWeight="Bold"
                                                             Click="BtnConfirmChanges_Click"
                                                             ToolTip="Aceptar las modificaciones actuales como nueva versión confirmada del archivo"/>
-                                                    <Button Content="↺ Revertir al Original"
+                                                    <Button Content="[REV] Revertir al Original"
                                                             Style="{StaticResource ToolbarMiniBtn}"
                                                             Foreground="{StaticResource BrushDiffRemovedBar}"
                                                             Click="BtnRevertChanges_Click"
@@ -498,11 +498,11 @@
                                                 MouseLeftButtonDown="Minimap_MouseDown"
                                                 MouseMove="Minimap_MouseMove">
                                             <Grid>
-                                                <Canvas x:Name="MinimapCanvas" Height="200" Margin="4,6,4,6" IsHitTestVisible="False"/>
+                                                <Canvas x:Name="MinimapCanvas" Margin="0" IsHitTestVisible="False"/>
                                                 <Border x:Name="MinimapViewport"
                                                         Height="54"
                                                         VerticalAlignment="Top"
-                                                        Margin="2,6,2,0"
+                                                        Margin="1,0,1,0"
                                                         Background="#184493f8"
                                                         BorderBrush="#454493f8"
                                                         BorderThickness="1"
@@ -532,12 +532,12 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                <TextBlock x:Name="TxtVulnChevron" Text="⌄ " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}"/>
-                                                <TextBlock Text="VULNERABILIDADES (SAST / CWE) Y CALIDAD (ISO 25010)" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}"/>
+                                                <TextBlock x:Name="TxtVulnChevron" Text="v " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}"/>
+                                                <TextBlock Text="VULNERABILIDADES (SAST / CWE) Y CALIDAD (ISO 25010)" FontFamily="Arial" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}"/>
                                                 <TextBlock x:Name="TxtAstSummaryCount" Text="  (analizando...)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Button Content="⚡ Corregir Todo en Vivo" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" Click="BtnApplyPatch_Click" ToolTip="Remedia todas las vulnerabilidades detectadas mostrando el progreso en el editor"/>
+                                                <Button Content="[AUTO] Corregir Todo en Vivo" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" FontWeight="Bold" Click="BtnApplyPatch_Click" ToolTip="Remedia todas las vulnerabilidades detectadas mostrando el progreso en el editor"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -566,13 +566,13 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                <TextBlock x:Name="TxtHexChevron" Text="⌄ " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" MouseLeftButtonDown="HexHeader_Click" Cursor="Hand"/>
-                                                <Button x:Name="BtnTabAstMetrics" Content="Árbol Sintáctico (AST) y Métricas ISO" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="SemiBold" Click="BtnTabAstMetrics_Click"/>
+                                                <TextBlock x:Name="TxtHexChevron" Text="v " FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushTextSecondary}" MouseLeftButtonDown="HexHeader_Click" Cursor="Hand"/>
+                                                <Button x:Name="BtnTabAstMetrics" Content="Árbol Sintáctico (AST) y Métricas ISO" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="Bold" Click="BtnTabAstMetrics_Click"/>
                                                 <Button x:Name="BtnTabHexView" Content="Inspección Hexadecimal (UTF-8)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnTabHexView_Click"/>
                                                 <TextBlock x:Name="TxtHexByteCount" Text="  (0 bytes)" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Button Content="Copiar Volcado Hex" Style="{StaticResource ToolbarMiniBtn}" Click="BtnCopyHex_Click"/>
+                                                <Button Content="[HEX] Copiar Volcado" Style="{StaticResource ToolbarMiniBtn}" Click="BtnCopyHex_Click"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -637,14 +637,14 @@
                                         <Border Grid.Column="0" Background="{StaticResource BrushBgPane}" BorderBrush="{StaticResource BrushAccentBlue}" BorderThickness="0,2,1,0" Padding="12,0" HorizontalAlignment="Left">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Border x:Name="DotAiConnection" Width="7" Height="7" CornerRadius="4" Background="{StaticResource BrushAccentBlue}" Margin="0,0,7,0"/>
-                                                <TextBlock Text="Asistente de Ingeniería de Software y Ciberseguridad (IA Local)" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="Asistente de Ingeniería de Software y Ciberseguridad (IA Local + RAG)" FontFamily="Arial" FontSize="12" FontWeight="Bold" Foreground="{StaticResource BrushTextPrimary}" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                         </Border>
 
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
-                                            <Button x:Name="BtnInstallOrCheckAi" Content="⚡ Motor IA Local" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" Click="BtnInstallOrCheckAi_Click" ToolTip="Verificar conexión o instalar modelo local Qwen 2.5 Coder 7B"/>
-                                            <Button Content="⊞ Especialidades" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavSkills_Click" ToolTip="Configurar especialidades técnicas activas"/>
-                                            <Button Content="Limpiar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnClearChat_Click" ToolTip="Limpiar historial de consultas"/>
+                                            <Button x:Name="BtnInstallOrCheckAi" Content="[LLM] Motor IA Local" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentSage}" Click="BtnInstallOrCheckAi_Click" ToolTip="Verificar conexión o iniciar modelo local Qwen 2.5 Coder 7B con RAG"/>
+                                            <Button Content="[ESP] Especialidades" Style="{StaticResource ToolbarMiniBtn}" Click="BtnNavSkills_Click" ToolTip="Configurar especialidades técnicas activas (12 disponibles)"/>
+                                            <Button Content="[CLR] Limpiar" Style="{StaticResource ToolbarMiniBtn}" Click="BtnClearChat_Click" ToolTip="Limpiar historial de consultas"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -658,8 +658,8 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBlock x:Name="TxtSkillRouterStatus"
                                                    Grid.Column="0"
-                                                   Text="⚡ Enrutador Técnico: 8 Especialidades Activas  ·  Anclaje AST: ACTIVO"
-                                                   FontFamily="Segoe UI, Consolas"
+                                                   Text="[RAG] 12 Especialidades Activas  ·  Anclaje AST: ACTIVO  ·  0 Alucinaciones"
+                                                   FontFamily="Arial, Consolas"
                                                    FontSize="11"
                                                    Foreground="{StaticResource BrushTextSecondary}"
                                                    TextTrimming="CharacterEllipsis"
@@ -683,13 +683,17 @@
                                 <!-- Botones de Especialidades de Ingeniería de Software y Ciberseguridad -->
                                 <Border Grid.Row="3" Background="#0e1218" BorderBrush="{StaticResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="8,5">
                                     <WrapPanel Orientation="Horizontal">
-                                        <Button Content="🎨 Diseño UI/UX (WCAG 2.2)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillUiUx_Click" ToolTip="Especialidad: Sistemas de Diseño e Interfaces Accesibles WCAG 2.2"/>
-                                        <Button Content="⚙ Arquitectura Backend (Clean)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillBackend_Click" ToolTip="Especialidad: Arquitectura Limpia, SOLID y APIs REST/gRPC"/>
-                                        <Button Content="🗄 Optimizar SQL Activo (3FN)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillDatabase_Click" ToolTip="Especialidad: Analizar y optimizar el archivo SQL o modelo de datos activo en el editor"/>
-                                        <Button Content="📋 Requisitos (ISO 29148)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillRequirements_Click" ToolTip="Especialidad: Ingeniería de Requisitos ISO/IEC/IEEE 29148 y Sintaxis EARS"/>
-                                        <Button Content="🏅 Calidad (ISO 25010 / 27001)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillIsoQuality_Click" ToolTip="Especialidad: Evaluación de Calidad de Software ISO/IEC 25010 y Controles ISO 27001"/>
-                                        <Button Content="🧪 Pruebas Unitarias (BVA)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillTesting_Click" ToolTip="Especialidad: Verificación y Análisis de Valores Límite (BVA)"/>
-                                        <Button Content="🛡 Auditoría y Parcheo (OWASP/CWE)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillSecurity_Click" ToolTip="Especialidad: Detección SAST y Remediación Progresiva en el Editor"/>
+                                        <Button Content="[UI/UX] Accesibilidad (WCAG 2.2)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillUiUx_Click" ToolTip="Especialidad: Sistemas de Diseño e Interfaces Accesibles WCAG 2.2"/>
+                                        <Button Content="[BACKEND] Arquitectura Limpia (SOLID)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillBackend_Click" ToolTip="Especialidad: Arquitectura Limpia, SOLID y APIs REST/gRPC"/>
+                                        <Button Content="[SQL] Optimizar Modelo Relacional (3FN)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillDatabase_Click" ToolTip="Especialidad: Analizar y optimizar el archivo SQL o modelo de datos activo en el editor"/>
+                                        <Button Content="[REQ] Ingeniería de Requisitos (ISO 29148)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillRequirements_Click" ToolTip="Especialidad: Ingeniería de Requisitos ISO/IEC/IEEE 29148 y Sintaxis EARS"/>
+                                        <Button Content="[ISO] Calidad y Seguridad (ISO 25010)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillIsoQuality_Click" ToolTip="Especialidad: Evaluación de Calidad de Software ISO/IEC 25010 y Controles ISO 27001"/>
+                                        <Button Content="[TEST] Pruebas y Valores Límite (BVA)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillTesting_Click" ToolTip="Especialidad: Verificación y Análisis de Valores Límite (BVA)"/>
+                                        <Button Content="[SEC] Auditoría SAST y Parcheo (OWASP)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillSecurity_Click" ToolTip="Especialidad: Detección SAST y Remediación Progresiva en el Editor"/>
+                                        <Button Content="[DEVOPS] Contenedores Seguros (Docker/K8s)" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillDevops_Click" ToolTip="Especialidad: Dockerfiles multi-stage rootless y CI/CD"/>
+                                        <Button Content="[API] Seguridad OAuth2/JWT y OpenAPI" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillApiSec_Click" ToolTip="Especialidad: Flujos OAuth2/OIDC, tokens JWT RS256 y contratos OpenAPI 3.1"/>
+                                        <Button Content="[PERF] Rendimiento Zero-Copy y Memoria" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillPerf_Click" ToolTip="Especialidad: Prevención de fugas de memoria y optimización de latencia"/>
+                                        <Button Content="[EVENT] Microservicios y Patrón Saga" Style="{StaticResource ToolbarMiniBtn}" Click="BtnSkillMicroservices_Click" ToolTip="Especialidad: EDA asíncrono, colas Kafka/RabbitMQ y outbox"/>
                                     </WrapPanel>
                                 </Border>
 
@@ -708,7 +712,7 @@
                                                      Foreground="{StaticResource BrushTextPrimary}"
                                                      CaretBrush="{StaticResource BrushAccentBlue}"
                                                      BorderThickness="0"
-                                                     FontFamily="Segoe UI"
+                                                     FontFamily="Arial"
                                                      FontSize="12.5"
                                                      VerticalContentAlignment="Center"
                                                      KeyDown="TxtPrompt_KeyDown"
@@ -717,7 +721,7 @@
                                                      LostFocus="TxtPrompt_LostFocus"/>
 
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Button Content="Ejecutar ⏎" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="SemiBold" Click="BtnSend_Click"/>
+                                                <Button Content="Ejecutar [Enter]" Style="{StaticResource ToolbarMiniBtn}" Foreground="{StaticResource BrushAccentBlue}" FontWeight="Bold" Click="BtnSend_Click"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -745,31 +749,31 @@
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <Border x:Name="DotTelemetryStatus" Width="8" Height="8" CornerRadius="4" Background="{StaticResource BrushAccentSage}" Margin="0,0,8,0" VerticalAlignment="Center"/>
 
-                            <TextBlock Text="MODELO IA: " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="TxtTelemetryModel" Text="Qwen 2.5 Coder 7B (Q4_K_M) + 8 Especialidades" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
+                            <TextBlock Text="MODELO IA: " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TxtTelemetryModel" Text="Qwen 2.5 Coder 7B (Q4_K_M) + 12 Especialidades [RAG ACTIVO]" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
 
-                            <TextBlock Text="   ·   " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                            <TextBlock Text="   ·   " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
 
-                            <TextBlock Text="VRAM GPU: " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                            <TextBlock Text="VRAM GPU: " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
                             <TextBlock x:Name="TxtTelemetryVram" Text="Consultando RTX 3050..." FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
 
-                            <TextBlock Text="   ·   " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                            <TextBlock Text="   ·   " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
 
-                            <TextBlock Text="TEMP. GPU: " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                            <TextBlock Text="TEMP. GPU: " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
                             <TextBlock x:Name="TxtTelemetryTemp" Text="-- °C" FontFamily="Consolas" FontSize="11.5" FontWeight="SemiBold" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
 
                             <StackPanel x:Name="TelemetryExtraGroup" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="   ·   " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
-                                <TextBlock Text="RAM SISTEMA: " FontFamily="Segoe UI" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
+                                <TextBlock Text="   ·   " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextMuted}" VerticalAlignment="Center"/>
+                                <TextBlock Text="RAM SISTEMA: " FontFamily="Arial" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="TxtTelemetryRam" Text="-- / 32.0 GB" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextPrimary}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
 
                         <!-- Estado del Espacio de Trabajo y Enrutador -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtGitBranchStatus" Text="⬡ Espacio de Trabajo Aislado" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                            <TextBlock x:Name="TxtEngineModeStatus" Text="ENRUTADOR DETERMINISTA ACTIVO" FontFamily="Segoe UI" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushAccentSage}" VerticalAlignment="Center"/>
-                            <TextBlock Text=" ◢" FontFamily="Consolas" FontSize="11" Foreground="#3b4654" VerticalAlignment="Bottom" Margin="8,0,-10,2" ToolTip="Arrastre cualquier borde o esquina para redimensionar la ventana"/>
+                            <TextBlock x:Name="TxtGitBranchStatus" Text="[LOCAL] Espacio de Trabajo Aislado" FontFamily="Consolas" FontSize="11.5" Foreground="{StaticResource BrushTextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                            <TextBlock x:Name="TxtEngineModeStatus" Text="ENRUTADOR DETERMINISTA + RAG ACTIVO" FontFamily="Arial" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushAccentSage}" VerticalAlignment="Center"/>
+                            <TextBlock Text=" [::]" FontFamily="Consolas" FontSize="11" Foreground="#3b4654" VerticalAlignment="Bottom" Margin="8,0,-10,2" ToolTip="Arrastre cualquier borde o esquina para redimensionar la ventana"/>
                         </StackPanel>
                     </Grid>
                 </Border>

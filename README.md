@@ -17,42 +17,43 @@
 ---
 
 > [!IMPORTANT]
-> ### 🛡️ Declaración de Autoría y Supervisión del Proyecto
+> ### Declaración de Autoría y Supervisión del Proyecto
 > **Este proyecto ha sido desarrollado íntegramente mediante asistencia de Inteligencia Artificial (IA) avanzada y diseñado, supervisado, auditado y validado técnicamente por [Jhon Moreno (@Jhonmoreno000)](https://github.com/Jhonmoreno000).**
 > 
-> Cada componente —desde el motor nativo de renderizado por GPU, los pipelines de DevSecOps, el catálogo de especialidades deterministas de ingeniería de software, hasta la integración con modelos locales LLM (Qwen 2.5 Coder 7B)— fue construido bajo directivas arquitectónicas humanas y sometido a control de calidad riguroso.
+> Cada componente —desde el motor nativo de renderizado por GPU, los pipelines de DevSecOps, el catálogo de 12 especialidades deterministas de ingeniería de software, hasta la integración con modelos locales LLM (Qwen 2.5 Coder 7B) y el motor RAG de recuperación— fue construido bajo directivas arquitectónicas humanas y sometido a control de calidad riguroso.
 
 ---
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
-1. [Visión General](#-visión-general)
-2. [Arquitectura del Sistema](#-arquitectura-del-sistema)
-3. [Características Principales](#-características-principales)
-4. [Catálogo de Especialidades de Ingeniería (Ahorro del ~78% de Tokens)](#-catálogo-de-especialidades-de-ingeniería)
-5. [Estrategia de Ramas GitFlow & CI/CD](#-estrategia-de-ramas-gitflow--cicd)
-6. [Requisitos de Hardware y Entorno](#-requisitos-de-hardware-y-entorno)
-7. [Instalación y Despliegue Rápido](#-instalación-y-despliegue-rápido)
-8. [Uso desde la Terminal](#-uso-desde-la-terminal)
-9. [Seguridad y Gobernanza de Datos](#-seguridad-y-gobernanza-de-datos)
-10. [Licencia](#-licencia)
+1. [Visión General](#visión-general)
+2. [Arquitectura del Sistema](#arquitectura-del-sistema)
+3. [Características Principales](#características-principales)
+4. [Catálogo de Especialidades de Ingeniería & RAG](#catálogo-de-especialidades-de-ingeniería-12-habilidades--motor-rag)
+5. [Estrategia de Ramas GitFlow & CI/CD](#estrategia-de-ramas-gitflow--cicd)
+6. [Requisitos de Hardware y Entorno](#requisitos-de-hardware-y-entorno)
+7. [Instalación y Despliegue Rápido](#instalación-y-despliegue-rápido)
+8. [Uso desde la Terminal](#uso-desde-la-terminal)
+9. [Seguridad y Gobernanza de Datos](#seguridad-y-gobernanza-de-datos)
+10. [Licencia](#licencia)
 
 ---
 
-## 🔭 Visión General
+## Visión General
 
 `secdev` es una estación de trabajo de alta ingeniería y ciberseguridad que opera **100% en local y fuera de línea**. Elimina las sobrecargas de memoria de entornos basados en navegadores web (Electron) gracias a un **motor nativo acelerado por hardware (Direct3D/WPF)** que se ejecuta instantáneamente desde cualquier consola mediante el comando global `secdev`.
 
 El sistema combina:
-- **Editor de código en tiempo real** con minimapa estructural y control de diferencias visuales línea a línea (verde `+` para líneas añadidas, rojo `-` para eliminadas o reemplazadas).
-- **Barra de progreso de edición IA en vivo** que aplica refactorizaciones paso a paso en el editor y exige confirmación explícita (`✓ Confirmar Cambios` o `↺ Revertir`).
+- **Editor de código en tiempo real** con minimapa estructural 1:1, navegación proporcional y control de diferencias visuales línea a línea (verde `+` para líneas añadidas, rojo `-` para eliminadas o reemplazadas).
+- **Barra de progreso de edición IA en vivo** que aplica refactorizaciones paso a paso en el editor y exige confirmación explícita (`[OK] Confirmar Cambios` o `[REV] Revertir`).
+- **Motor RAG en memoria** que indexa el árbol completo del proyecto para alimentar tanto al LLM como al motor determinista con fragmentos exactos de código (cero alucinaciones).
 - **Analizador estático SAST (CWE / OWASP Top 10)** y evaluación continua de calidad bajo norma **ISO/IEC 25010** e **ISO/IEC 27001**.
 - **Inferencia local LLM** potenciada por `Qwen 2.5 Coder 7B Instruct` cuantizado en GGUF (`Q4_K_M`) para GPU dedicada (NVIDIA GeForce RTX 3050, 4 GB VRAM) y 32 GB RAM de sistema.
 - **Aislamiento de proyectos:** Protege los archivos nucleares de la estación contra mutaciones accidentales y administra los repositorios del usuario en un espacio sandbox dedicado.
 
 ---
 
-## 🏛 Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```mermaid
 flowchart TD
@@ -91,7 +92,7 @@ flowchart TD
 
 ---
 
-## ⚡ Características Principales
+## Características Principales
 
 ### 1. Invocación Exclusiva por Consola (Cero Iconos de Escritorio)
 El entorno no satura el menú de inicio ni el escritorio. Se instala un shim ligero en la variable `PATH` del usuario permitiendo invocar la estación desde cualquier ruta:
@@ -102,7 +103,7 @@ secdev
 ### 2. Editor Real con Progreso en Vivo y Confirmación
 - **Modificación progresiva:** Al solicitar una refactorización a la IA o aplicar un parche SAST, el editor no sobrescribe de golpe; despliega una barra de progreso que aplica cada cambio línea por línea con navegación automática al punto editado.
 - **Diferencias sin deformación horizontal:** Las líneas eliminadas y añadidas se calculan mediante el algoritmo LCS con márgenes acotados, evitando que el área de código se desplace lateralmente.
-- **Compuerta de decisión:** Tras la edición, se activan los botones `✓ Confirmar y Guardar Cambios` (guarda en disco y actualiza la línea base) y `↺ Revertir al Original` (deshace las modificaciones al estado anterior con un clic).
+- **Compuerta de decisión:** Tras la edición, se activan los botones `[OK] Confirmar y Guardar Cambios` (guarda en disco y actualiza la línea base) y `[REV] Revertir al Original` (deshace las modificaciones al estado anterior con un clic).
 
 ### 3. Escáner SAST Multilenguaje & Calidad ISO-25010
 Inspección léxica y sintáctica en tiempo real sobre archivos `SQL`, `C`, `C++`, `C#`, `Python`, `JavaScript` y `TypeScript`:
@@ -115,24 +116,28 @@ Inspección léxica y sintáctica en tiempo real sobre archivos `SQL`, `C`, `C++
 
 ---
 
-## 🧠 Catálogo de Especialidades de Ingeniería
+## Catálogo de Especialidades de Ingeniería (12 Habilidades & Motor RAG)
 
-Para evitar alucinaciones y reducir el consumo de tokens en **~78%**, `secdev` incorpora 8 especialidades basadas en estándares de ingeniería de software públicas:
+Para eliminar alucinaciones y reducir el consumo de tokens en **~78%**, `secdev` incorpora un **Motor RAG Multidocumento en Memoria** junto con 12 especialidades basadas en estándares formales de ingeniería de software:
 
 | Especialidad | Norma / Estándar | Beneficio Técnico |
 | :--- | :--- | :--- |
-| **🎨 Diseño UI/UX** | WCAG 2.2 AA / W3C Design Tokens | Jerarquía de contraste >= 4.5:1, rejilla responsiva y curvas de animación `CubicEase`. |
-| **⚙ Arquitectura Backend** | Clean / Hexagonal / SOLID / RFC 7807 | Puertos y adaptadores estrictos, DTOs inmutables y manejo tipado de errores. |
-| **🗄 Base de Datos y SQL** | 3FN / Índices B-Tree / ANSI SQL | Normalización 3FN, eliminación de duplicidad, tipos exactos `DECIMAL` y prevención CWE-89. |
-| **📋 Requisitos de Software** | ISO/IEC/IEEE 29148 / Sintaxis EARS | Requisitos ubicuos, dirigidos por eventos y criterios verificables en Gherkin. |
-| **🏅 Calidad y Seguridad** | ISO/IEC 25010 / ISO/IEC 27001 | Análisis de los 8 pilares de calidad del producto y controles de criptografía y acceso. |
-| **🧪 Pruebas Unitarias** | Análisis de Valores Límite (BVA) / AAA | Casos de prueba en límites (nulo, mínimo, nominal, máximo + 1) con aserciones deterministas. |
-| **🛡 Ciberseguridad SAST** | OWASP Top 10 / CWE Top 25 | Detección de vectores de corrupción de memoria, inyecciones y remediación automatizada. |
-| **⚡ Optimizador de Tokens** | Poda AST y Context Grounding | Inyección exclusiva de firmas de símbolos y directivas de dominio, reduciendo de ~2500 a ~350 tokens. |
+| **[UI/UX] Diseño UI/UX** | WCAG 2.2 AA / W3C Design Tokens | Jerarquía de contraste >= 4.5:1, rejilla responsiva y curvas de animación `CubicEase`. |
+| **[BACKEND] Arquitectura Backend** | Clean / Hexagonal / SOLID / RFC 7807 | Puertos y adaptadores estrictos, DTOs inmutables y desacoplamiento de infraestructura. |
+| **[SQL] Base de Datos y SQL** | 3FN / Índices B-Tree / ANSI SQL | Normalización 3FN, eliminación de duplicidad, tipos exactos `DECIMAL` y prevención CWE-89. |
+| **[REQ] Requisitos de Software** | ISO/IEC/IEEE 29148 / Sintaxis EARS | Requisitos ubicuos, dirigidos por eventos y criterios verificables. |
+| **[ISO] Calidad y Seguridad** | ISO/IEC 25010 / ISO/IEC 27001 | Análisis de los 8 pilares de calidad del producto y controles de criptografía y acceso. |
+| **[TEST] Pruebas Unitarias** | Análisis de Valores Límite (BVA) / AAA | Casos de prueba en límites (nulo, mínimo, nominal, máximo + 1) con aserciones deterministas. |
+| **[SEC] Ciberseguridad SAST** | OWASP Top 10 / CWE Top 25 | Detección de vectores de corrupción de memoria, inyecciones y remediación automatizada. |
+| **[DEVOPS] Contenedorización** | Docker OCI / Kubernetes HPA / Rootless | Multi-stage builds con usuario no privilegiado (UID 10001) y perfiles de seguridad estrictos. |
+| **[API] Seguridad en APIs** | OWASP API Top 10 / OAuth2 / JWT | Validación de tokens asimétricos RS256/EdDSA, limitación de tasa leaky-bucket y schemas OpenAPI. |
+| **[PERF] Rendimiento y Memoria** | Zero-Copy / ReadOnlySpan / ArrayPool | Segmentación de memoria sin asignaciones en montículo y eliminación de pausas de GC. |
+| **[EVENT] Microservicios y Saga** | Patrón Saga / Transactional Outbox | Consistencia eventual sin condiciones de carrera y claves de idempotencia para Kafka/RabbitMQ. |
+| **[RAG] Motor de Recuperación** | Indexador Vectorial Léxico en Memoria | Indexa cada archivo del proyecto activo e inyecta fragmentos exactos en el prompt para cero alucinaciones. |
 
 ---
 
-## 🌿 Estrategia de Ramas GitFlow & CI/CD
+## Estrategia de Ramas GitFlow & CI/CD
 
 El repositorio sigue un modelo estricto de ingeniería de ramas:
 
@@ -148,7 +153,7 @@ El repositorio sigue un modelo estricto de ingeniería de ramas:
 
 ---
 
-## 💻 Requisitos de Hardware y Entorno
+## Requisitos de Hardware y Entorno
 
 - **Sistema Operativo:** Windows 10 u 11 (64-bit).
 - **Procesador:** Intel Core i5/i7 o AMD Ryzen 5/7 (4+ núcleos).
@@ -159,7 +164,7 @@ El repositorio sigue un modelo estricto de ingeniería de ramas:
 
 ---
 
-## 🚀 Instalación y Despliegue Rápido
+## Instalación y Despliegue Rápido
 
 Abra una consola de PowerShell y ejecute:
 
@@ -183,7 +188,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\pull-model.ps1
 
 ---
 
-## 🖥 Uso desde la Terminal
+## Uso desde la Terminal
 
 Una vez registrado el comando, puede abrir la estación de trabajo desde cualquier directorio de su máquina:
 
@@ -197,7 +202,7 @@ secdev --help
 
 ---
 
-## 🔒 Seguridad y Gobernanza de Datos
+## Seguridad y Gobernanza de Datos
 
 - **Zero-Telemetry:** `secdev` no envía telemetría de uso, fragmentos de código ni trazas de auditoría a servidores de terceros en la nube.
 - **Inferencia Confinada:** Todas las consultas al modelo de lenguaje se resuelven en la GPU local a través de `127.0.0.1:11434`.
@@ -205,7 +210,7 @@ secdev --help
 
 ---
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto se distribuye bajo la Licencia **Apache 2.0**. Para más información, consulte el archivo [LICENSE](LICENSE).
 

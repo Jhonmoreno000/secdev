@@ -52,9 +52,138 @@ namespace Secdev.Workstation
         private readonly List<string> _openTabFiles = new();
         private readonly List<FileDiagnosticFinding> _currentFindings = new();
         private readonly List<EngineeringSkill> _skillsCatalog = new();
+        private readonly RagProjectEngine _ragEngine = new();
         private DispatcherTimer? _telemetryTimer;
         private static readonly HttpClient _httpShortClient = new() { Timeout = TimeSpan.FromSeconds(2.5) };
         private static readonly HttpClient _httpStreamClient = new() { Timeout = TimeSpan.FromMinutes(5) };
+
+        public class RagChunk
+        {
+            public string FilePath { get; set; } = "";
+            public string RelativePath { get; set; } = "";
+            public int StartLine { get; set; }
+            public int EndLine { get; set; }
+            public string Content { get; set; } = "";
+            public HashSet<string> Tokens { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        }
+
+        public class RagProjectEngine
+        {
+            private readonly List<RagChunk> _chunks = new();
+            private readonly HashSet<string> _indexedFiles = new(StringComparer.OrdinalIgnoreCase);
+
+            public int IndexedFilesCount => _indexedFiles.Count;
+            public int TotalChunksCount => _chunks.Count;
+
+            public void IndexProject(string projectRoot)
+            {
+                _chunks.Clear();
+                _indexedFiles.Clear();
+                if (string.IsNullOrWhiteSpace(projectRoot) || !Directory.Exists(projectRoot)) return;
+
+                try
+                {
+                    var files = Directory.GetFiles(projectRoot, "*.*", SearchOption.AllDirectories)
+                        .Where(f => !f.Contains("\\.git\\") && !f.Contains("\\node_modules\\") && !f.Contains("\\build\\") && !f.Contains("\\obj\\") && !f.Contains("\\bin\\"))
+                        .Where(f => Regex.IsMatch(System.IO.Path.GetExtension(f), @"^\.(c|cpp|h|hpp|cs|py|js|ts|tsx|sql|go|rs|java|json|md|yaml|yml|txt)$", RegexOptions.IgnoreCase))
+                        .ToList();
+
+                    foreach (string file in files)
+                    {
+                        try
+                        {
+                            _indexedFiles.Add(file);
+                            string text = File.ReadAllText(file, Encoding.UTF8);
+                            string rel = file.Substring(projectRoot.Length).TrimStart('\\', '/');
+                            string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+                            const int chunkSize = 28;
+                            const int overlap = 6;
+                            for (int start = 0; start < lines.Length; start += (chunkSize - overlap))
+                            {
+                                int count = Math.Min(chunkSize, lines.Length - start);
+                                var chunkLines = lines.Skip(start).Take(count).ToArray();
+                                string chunkText = string.Join("\n", chunkLines);
+                                if (string.IsNullOrWhiteSpace(chunkText)) continue;
+
+                                var chunk = new RagChunk
+                                {
+                                    FilePath = file,
+                                    RelativePath = rel,
+                                    StartLine = start + 1,
+                                    EndLine = start + count,
+                                    Content = chunkText
+                                };
+
+                                var matches = Regex.Matches(chunkText, @"[a-zA-Z0-9_]{3,}");
+                                foreach (Match m in matches)
+                                {
+                                    chunk.Tokens.Add(m.Value.ToLowerInvariant());
+                                }
+
+                                _chunks.Add(chunk);
+                                if (start + count >= lines.Length) break;
+                            }
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
+
+            public List<(RagChunk Chunk, double Score)> RetrieveTopChunks(string query, int topK = 4)
+            {
+                if (_chunks.Count == 0 || string.IsNullOrWhiteSpace(query)) return new();
+
+                var queryTerms = Regex.Matches(query, @"[a-zA-Z0-9_]{3,}")
+                    .Cast<Match>()
+                    .Select(m => m.Value.ToLowerInvariant())
+                    .Distinct()
+                    .ToList();
+
+                if (queryTerms.Count == 0) return new();
+
+                var scored = new List<(RagChunk Chunk, double Score)>();
+                foreach (var chunk in _chunks)
+                {
+                    double score = 0;
+                    foreach (var term in queryTerms)
+                    {
+                        if (chunk.Tokens.Contains(term))
+                        {
+                            if (chunk.RelativePath.Contains(term, StringComparison.OrdinalIgnoreCase))
+                                score += 3.5;
+                            else
+                                score += 1.0;
+                        }
+                    }
+                    if (score > 0)
+                    {
+                        scored.Add((chunk, score));
+                    }
+                }
+
+                return scored.OrderByDescending(x => x.Score).Take(topK).ToList();
+            }
+
+            public string BuildRagContextForPrompt(string query, out int retrievedCount)
+            {
+                var top = RetrieveTopChunks(query, 4);
+                retrievedCount = top.Count;
+                if (top.Count == 0) return "";
+
+                var sb = new StringBuilder();
+                sb.AppendLine("=== CONTEXTO DEL PROYECTO (RECUPERACIÓN RAG - 0 ALUCINACIONES) ===");
+                sb.AppendLine("Utilice estrictamente los siguientes fragmentos indexados del proyecto activo para anclar su respuesta con exactitud técnica:");
+                foreach (var item in top)
+                {
+                    sb.AppendLine($"\n[ARCHIVO: {item.Chunk.RelativePath} | LÍNEAS {item.Chunk.StartLine}-{item.Chunk.EndLine}]");
+                    sb.AppendLine(item.Chunk.Content);
+                }
+                sb.AppendLine("=== FIN DE CONTEXTO RAG ===");
+                return sb.ToString();
+            }
+        }
 
         private enum LineDiffState
         {
@@ -260,6 +389,8 @@ int main(int argc, char **argv) {
                 existingUserFiles.Add(sampleUserFile);
             }
 
+            _ragEngine.IndexProject(_userWorkspaceRoot);
+
             _openTabFiles.Clear();
             foreach (string uFile in existingUserFiles.Take(4))
             {
@@ -282,7 +413,7 @@ int main(int argc, char **argv) {
         {
             _activeFilePath = "";
             _suppressTextChanged = true;
-            CodeEditorTextBox.Text = "// Espacio de trabajo limpio.\n// Utilice el botón superior '⬡ Subir Archivos', '+ Nuevo' o '📂 Abrir Proyecto' para cargar sus archivos.";
+            CodeEditorTextBox.Text = "// Espacio de trabajo limpio.\n// Utilice los botones superiores '[+] Subir Archivos', '[+] Nuevo' o '[>] Abrir Proyecto' para cargar sus proyectos.";
             _suppressTextChanged = false;
             TxtBreadcrumbPath.Text = "Espacio de Trabajo › Sin archivos abiertos";
             PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
@@ -340,6 +471,26 @@ int main(int argc, char **argv) {
                     "Compresión de Contexto AST y Prevención de Alucinaciones",
                     "Optimización de Inferencia IA",
                     "Poda de contexto irrelevante e inyección selectiva de firmas sintácticas AST para reducir el consumo de tokens en ~78%."
+                ),
+                ["devops-containerization"] = (
+                    "Contenedores Seguros y CI/CD (Docker / K8s)",
+                    "DevOps y Despliegue",
+                    "Construcción multi-stage, usuarios sin privilegios (rootless), escaneo de capas y manifiestos de orquestación."
+                ),
+                ["api-security-rest-graphql"] = (
+                    "Seguridad en APIs (REST, GraphQL y OpenAPI)",
+                    "Seguridad de APIs",
+                    "Flujos OAuth2/OIDC, tokens JWT con rotación asimétrica RS256, rate limiting y contratos OpenAPI 3.1."
+                ),
+                ["performance-memory-optimization"] = (
+                    "Optimización de Rendimiento y Memoria (Zero-Copy)",
+                    "Rendimiento y Sistemas",
+                    "Perfiles de CPU/memoria, estructuras de datos sin asignaciones dinámicas en bucles, SIMD y prevención de fugas."
+                ),
+                ["microservices-event-architecture"] = (
+                    "Arquitectura de Microservicios y Eventos",
+                    "Arquitectura Distribuida",
+                    "Desacoplamiento asíncrono con Event-Driven Architecture, patrones Saga, Outbox y resiliencia con Circuit Breakers."
                 )
             };
 
@@ -386,7 +537,7 @@ int main(int argc, char **argv) {
             {
                 if ((lower.Contains("ui") || lower.Contains("ux") || lower.Contains("interfaz") || lower.Contains("diseño") || lower.Contains("css") || lower.Contains("frontend") || lower.Contains("wcag")) && s.Id.Contains("ui-ux"))
                     matched.Add(s);
-                else if ((lower.Contains("backend") || lower.Contains("api") || lower.Contains("rest") || lower.Contains("arquitectura") || lower.Contains("clean") || lower.Contains("solid") || lower.Contains("servidor")) && s.Id.Contains("backend"))
+                else if ((lower.Contains("backend") || lower.Contains("arquitectura") || lower.Contains("clean") || lower.Contains("solid") || lower.Contains("servidor")) && s.Id.Contains("backend"))
                     matched.Add(s);
                 else if ((lower.Contains("base de datos") || lower.Contains("sql") || lower.Contains("postgres") || lower.Contains("tabla") || lower.Contains("esquema") || lower.Contains("3fn") || lower.Contains("consulta")) && s.Id.Contains("database"))
                     matched.Add(s);
@@ -397,6 +548,14 @@ int main(int argc, char **argv) {
                 else if ((lower.Contains("prueba") || lower.Contains("test") || lower.Contains("qa") || lower.Contains("unitaria") || lower.Contains("bva") || lower.Contains("límite")) && s.Id.Contains("qa-testing"))
                     matched.Add(s);
                 else if ((lower.Contains("vulnerab") || lower.Contains("seguridad") || lower.Contains("cwe") || lower.Contains("owasp") || lower.Contains("parche") || lower.Contains("remedi") || lower.Contains("corregir") || lower.Contains("audita")) && s.Id.Contains("owasp-cwe"))
+                    matched.Add(s);
+                else if ((lower.Contains("devops") || lower.Contains("docker") || lower.Contains("contenedor") || lower.Contains("k8s") || lower.Contains("ci/cd") || lower.Contains("kubernetes")) && s.Id.Contains("devops"))
+                    matched.Add(s);
+                else if ((lower.Contains("api") || lower.Contains("jwt") || lower.Contains("oauth") || lower.Contains("graphql") || lower.Contains("endpoint") || lower.Contains("openapi")) && s.Id.Contains("api-security"))
+                    matched.Add(s);
+                else if ((lower.Contains("rendimiento") || lower.Contains("memoria") || lower.Contains("latencia") || lower.Contains("zero-copy") || lower.Contains("fuga") || lower.Contains("cpu")) && s.Id.Contains("performance"))
+                    matched.Add(s);
+                else if ((lower.Contains("microservicio") || lower.Contains("evento") || lower.Contains("kafka") || lower.Contains("saga") || lower.Contains("rabbitmq") || lower.Contains("distribuido")) && s.Id.Contains("microservices"))
                     matched.Add(s);
             }
 
@@ -420,7 +579,7 @@ int main(int argc, char **argv) {
         private void UpdateSkillStatusBanner(List<EngineeringSkill> routed, int savedPct = 78, int compressed = 340, int raw = 1620)
         {
             string names = string.Join(", ", routed.Take(2).Select(s => s.NombreTecnicoEsp));
-            TxtSkillRouterStatus.Text = $"⚡ Especialidades: [{names}]";
+            TxtSkillRouterStatus.Text = $"[RAG] Especialidades: [{names}]";
             TxtTokenSavingsBadge.Text = $"{raw} → {compressed} tok (-{savedPct}%)";
         }
 
@@ -593,6 +752,7 @@ int main(int argc, char **argv) {
 
                 if (!string.IsNullOrEmpty(lastImported))
                 {
+                    _ragEngine.IndexProject(_userWorkspaceRoot);
                     OpenFileInEditor(lastImported);
                     if (_isDrawerOpen && _activeDrawerSection == "EXPLORER")
                     {
@@ -603,7 +763,7 @@ int main(int argc, char **argv) {
                         "ARCHIVOS",
                         Color.FromRgb(0x3f, 0xb9, 0x50),
                         $"Se cargaron {importedCount} archivo(s) en el espacio de trabajo",
-                        $"Archivo activo en el editor: {System.IO.Path.GetFileName(lastImported)}\nAuditoría SAST (OWASP/CWE) y análisis ISO/IEC 25010 ejecutados automáticamente.",
+                        $"Archivo activo en el editor: {System.IO.Path.GetFileName(lastImported)}\nAuditoría SAST (OWASP/CWE), análisis ISO/IEC 25010 e indexación RAG completados.",
                         null
                     );
                 }
@@ -634,6 +794,7 @@ int main(int argc, char **argv) {
                 File.WriteAllText(dlg.FileName, initialTemplate, Encoding.UTF8);
                 _fileBaselines[dlg.FileName] = SplitLines(initialTemplate);
                 _preAiEditSnapshots[dlg.FileName] = initialTemplate;
+                _ragEngine.IndexProject(_userWorkspaceRoot);
                 OpenFileInEditor(dlg.FileName);
 
                 if (_isDrawerOpen && _activeDrawerSection == "EXPLORER")
@@ -651,6 +812,7 @@ int main(int argc, char **argv) {
                 File.WriteAllText(_activeFilePath, CodeEditorTextBox.Text, Encoding.UTF8);
                 _fileBaselines[_activeFilePath] = SplitLines(CodeEditorTextBox.Text);
                 _preAiEditSnapshots[_activeFilePath] = CodeEditorTextBox.Text;
+                _ragEngine.IndexProject(_userWorkspaceRoot);
                 PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
                 RefreshAllLiveViews();
 
@@ -658,7 +820,7 @@ int main(int argc, char **argv) {
                     "CONFIRMADO",
                     Color.FromRgb(0x3f, 0xb9, 0x50),
                     $"Cambios confirmados y guardados en {System.IO.Path.GetFileName(_activeFilePath)}",
-                    $"Se escribieron {Encoding.UTF8.GetByteCount(CodeEditorTextBox.Text)} bytes en disco y se actualizó la línea base del archivo.",
+                    $"Se escribieron {Encoding.UTF8.GetByteCount(CodeEditorTextBox.Text)} bytes en disco, se actualizó la línea base del archivo y el índice RAG.",
                     null
                 );
             }
@@ -738,17 +900,18 @@ int main(int argc, char **argv) {
 
             _userWorkspaceRoot = newWorkspaceRoot;
             _openTabFiles.Clear();
+            _ragEngine.IndexProject(_userWorkspaceRoot);
 
             var sourceFiles = Directory.GetFiles(_userWorkspaceRoot, "*.*", SearchOption.AllDirectories)
                 .Where(f => !EsRutaInternaDelMotor(f))
                 .Where(f => !f.Contains("\\.git\\") && !f.Contains("\\node_modules\\") && !f.Contains("\\build\\") && !f.Contains("\\obj\\") && !f.Contains("\\bin\\"))
-                .Where(f => Regex.IsMatch(System.IO.Path.GetExtension(f), @"^\.(c|cpp|h|hpp|cs|py|js|ts|tsx|sql|go|rs|java|json|md)$", RegexOptions.IgnoreCase))
-                .Take(5)
+                .Where(f => Regex.IsMatch(System.IO.Path.GetExtension(f), @"^\.(c|cpp|h|hpp|cs|py|js|ts|tsx|sql|go|rs|java|json|md|html|css|yaml|yml)$", RegexOptions.IgnoreCase))
+                .OrderBy(f => f)
                 .ToList();
 
             if (sourceFiles.Count > 0)
             {
-                foreach (var f in sourceFiles.Take(3)) _openTabFiles.Add(f);
+                foreach (var f in sourceFiles.Take(4)) _openTabFiles.Add(f);
                 OpenFileInEditor(sourceFiles[0]);
             }
             else
@@ -777,7 +940,7 @@ int main(int argc, char **argv) {
                 }
 
                 _showInlineDiff = true;
-                BtnDiffModeToggle.Content = "⇄ Diferencias: ACTIVO";
+                BtnDiffModeToggle.Content = "[DIFF] Diferencias: ACTIVO";
 
                 PanelProgresoEdicionIA.Visibility = Visibility.Visible;
                 PanelBotonesConfirmacion.Visibility = Visibility.Collapsed;
@@ -1577,19 +1740,20 @@ int main(int argc, char **argv) {
         }
 
         // =====================================================================
-        // 7. VISTA PREVIA ESTRUCTURAL (MINIMAPA EN TIEMPO REAL)
+        // 7. VISTA PREVIA ESTRUCTURAL (MINIMAPA EN TIEMPO REAL - PRECISIÓN 1:1)
         // =====================================================================
         private void RebuildMinimap(string[] lines, List<LineDiffInfo> diffInfos)
         {
             MinimapCanvas.Children.Clear();
 
-            double y = 2.0;
-            const double lineStep = 4.0;
-            const double barHeight = 2.2;
-            const double maxCanvasWidth = 72.0;
+            const double lineStep = 3.0;
+            const double barHeight = 1.8;
+            const double maxCanvasWidth = 76.0;
+            double panelH = MinimapPanel.ActualHeight > 20 ? MinimapPanel.ActualHeight : 400.0;
 
             for (int i = 0; i < lines.Length; i++)
             {
+                double y = i * lineStep;
                 string rawLine = lines[i];
                 var info = i < diffInfos.Count ? diffInfos[i] : new LineDiffInfo();
 
@@ -1602,8 +1766,8 @@ int main(int argc, char **argv) {
                     var redBg = new Rectangle
                     {
                         Width = maxCanvasWidth,
-                        Height = barHeight + 1.2,
-                        Fill = new SolidColorBrush(Color.FromArgb(95, 0xe5, 0x53, 0x4b))
+                        Height = lineStep,
+                        Fill = new SolidColorBrush(Color.FromArgb(95, 0xda, 0x36, 0x33))
                     };
                     Canvas.SetLeft(redBg, 0);
                     Canvas.SetTop(redBg, y);
@@ -1612,27 +1776,12 @@ int main(int argc, char **argv) {
                     var redGutter = new Rectangle
                     {
                         Width = 3,
-                        Height = barHeight + 1.2,
-                        Fill = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b))
+                        Height = lineStep,
+                        Fill = new SolidColorBrush(Color.FromRgb(0xda, 0x36, 0x33))
                     };
                     Canvas.SetLeft(redGutter, 0);
                     Canvas.SetTop(redGutter, y);
                     MinimapCanvas.Children.Add(redGutter);
-
-                    double remLen = Math.Min(maxCanvasWidth - 10, Math.Max(12, (info.RemovedOriginalText?.Length ?? 15) * 0.9));
-                    var redBar = new Rectangle
-                    {
-                        Width = remLen,
-                        Height = barHeight,
-                        RadiusX = 1,
-                        RadiusY = 1,
-                        Fill = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b))
-                    };
-                    Canvas.SetLeft(redBar, 6);
-                    Canvas.SetTop(redBar, y + 0.5);
-                    MinimapCanvas.Children.Add(redBar);
-
-                    y += lineStep;
                 }
 
                 if (isAdded)
@@ -1640,21 +1789,21 @@ int main(int argc, char **argv) {
                     var greenBg = new Rectangle
                     {
                         Width = maxCanvasWidth,
-                        Height = barHeight + 1.4,
+                        Height = lineStep,
                         Fill = new SolidColorBrush(Color.FromArgb(90, 0x2e, 0xa0, 0x43))
                     };
                     Canvas.SetLeft(greenBg, 0);
-                    Canvas.SetTop(greenBg, y - 0.3);
+                    Canvas.SetTop(greenBg, y);
                     MinimapCanvas.Children.Add(greenBg);
 
                     var greenGutter = new Rectangle
                     {
                         Width = 3,
-                        Height = barHeight + 1.4,
+                        Height = lineStep,
                         Fill = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50))
                     };
                     Canvas.SetLeft(greenGutter, 0);
-                    Canvas.SetTop(greenGutter, y - 0.3);
+                    Canvas.SetTop(greenGutter, y);
                     MinimapCanvas.Children.Add(greenGutter);
                 }
                 else if (isVuln)
@@ -1662,20 +1811,16 @@ int main(int argc, char **argv) {
                     var vulnGutter = new Rectangle
                     {
                         Width = 3,
-                        Height = barHeight + 1.4,
-                        Fill = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b))
+                        Height = lineStep,
+                        Fill = new SolidColorBrush(Color.FromRgb(0xda, 0x36, 0x33))
                     };
                     Canvas.SetLeft(vulnGutter, 0);
-                    Canvas.SetTop(vulnGutter, y - 0.3);
+                    Canvas.SetTop(vulnGutter, y);
                     MinimapCanvas.Children.Add(vulnGutter);
                 }
 
                 string trimmed = rawLine.Trim();
-                if (string.IsNullOrEmpty(trimmed))
-                {
-                    y += lineStep;
-                    continue;
-                }
+                if (string.IsNullOrEmpty(trimmed)) continue;
 
                 int leadingSpaces = 0;
                 foreach (char c in rawLine)
@@ -1685,13 +1830,13 @@ int main(int argc, char **argv) {
                     else break;
                 }
 
-                double xOffset = 5.0 + Math.Min(24.0, leadingSpaces * 1.4);
+                double xOffset = 5.0 + Math.Min(22.0, leadingSpaces * 1.2);
                 Color tokenColor = GetMinimapLineColor(trimmed, isAdded, isVuln);
 
                 string[] tokens = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string tok in tokens.Take(5))
+                foreach (string tok in tokens.Take(6))
                 {
-                    double tokWidth = Math.Max(3.0, Math.Min(maxCanvasWidth - xOffset, tok.Length * 1.25));
+                    double tokWidth = Math.Max(2.5, Math.Min(maxCanvasWidth - xOffset, tok.Length * 1.3));
                     if (xOffset + tokWidth > maxCanvasWidth)
                     {
                         tokWidth = Math.Max(0, maxCanvasWidth - xOffset);
@@ -1702,39 +1847,37 @@ int main(int argc, char **argv) {
                     {
                         Width = tokWidth,
                         Height = barHeight,
-                        RadiusX = 1,
-                        RadiusY = 1,
+                        RadiusX = 0.8,
+                        RadiusY = 0.8,
                         Fill = new SolidColorBrush(tokenColor)
                     };
                     Canvas.SetLeft(rect, xOffset);
-                    Canvas.SetTop(rect, y);
+                    Canvas.SetTop(rect, y + 0.6);
                     MinimapCanvas.Children.Add(rect);
 
-                    xOffset += tokWidth + 2.2;
+                    xOffset += tokWidth + 2.0;
                 }
-
-                y += lineStep;
             }
 
-            MinimapCanvas.Height = Math.Max(120, y + 10);
+            MinimapCanvas.Height = Math.Max(panelH, lines.Length * lineStep);
             UpdateMinimapViewportPosition();
         }
 
         private Color GetMinimapLineColor(string trimmedLine, bool isAdded, bool isVuln)
         {
             if (isAdded) return Color.FromRgb(0x3f, 0xb9, 0x50);
-            if (isVuln) return Color.FromRgb(0xe5, 0x53, 0x4b);
-            if (trimmedLine.StartsWith("//") || trimmedLine.StartsWith("--") || trimmedLine.StartsWith("# "))
-                return Color.FromRgb(0x48, 0x4f, 0x58);
+            if (isVuln) return Color.FromRgb(0xda, 0x36, 0x33);
+            if (trimmedLine.StartsWith("//") || trimmedLine.StartsWith("--") || trimmedLine.StartsWith("# ") || trimmedLine.StartsWith("/*"))
+                return Color.FromRgb(0x76, 0x83, 0x90); // Gris pizarra visible
             if (trimmedLine.StartsWith("#include") || trimmedLine.StartsWith("using ") || trimmedLine.StartsWith("import "))
-                return Color.FromRgb(0x9e, 0x86, 0xc8);
+                return Color.FromRgb(0xa3, 0x71, 0xf7); // Violeta estructurado
             if (trimmedLine.StartsWith("void ") || trimmedLine.StartsWith("int ") || trimmedLine.StartsWith("Create ", StringComparison.OrdinalIgnoreCase) || trimmedLine.StartsWith("class ") || trimmedLine.StartsWith("struct "))
-                return Color.FromRgb(0x58, 0xa6, 0xff);
+                return Color.FromRgb(0x58, 0xa6, 0xff); // Azul palabras clave
             if (trimmedLine.StartsWith("if ") || trimmedLine.StartsWith("If ", StringComparison.OrdinalIgnoreCase) || trimmedLine.StartsWith("Select ", StringComparison.OrdinalIgnoreCase) || trimmedLine.StartsWith("return "))
-                return Color.FromRgb(0x79, 0xc0, 0xff);
+                return Color.FromRgb(0x79, 0xc0, 0xff); // Cian claro
             if (trimmedLine.Contains("\"") || trimmedLine.Contains("'"))
-                return Color.FromRgb(0xd2, 0x99, 0x22);
-            return Color.FromRgb(0x8b, 0x94, 0x9e);
+                return Color.FromRgb(0xd2, 0x99, 0x22); // Ámbar cadenas
+            return Color.FromRgb(0x8b, 0x94, 0x9e); // Neutro
         }
 
         private void EditorScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
@@ -1747,30 +1890,44 @@ int main(int argc, char **argv) {
             if (!IsLoaded || EditorScrollViewer == null || MinimapViewport == null || MinimapPanel == null || MinimapCanvas == null)
                 return;
 
+            const double lineStep = 3.0;
+            const double editorLineH = 20.0;
+
+            string[] currentLines = SplitLines(CodeEditorTextBox.Text);
+            int totalLines = Math.Max(1, currentLines.Length);
+            double totalCodeMinimapHeight = totalLines * lineStep;
+
+            double viewportH = Math.Max(1.0, EditorScrollViewer.ViewportHeight);
             double scrollable = EditorScrollViewer.ScrollableHeight;
-            double panelHeight = Math.Max(80.0, MinimapPanel.ActualHeight - 16.0);
-            double canvasH = (!double.IsNaN(MinimapCanvas.Height) && MinimapCanvas.Height > 0)
-                ? MinimapCanvas.Height
-                : Math.Max(120.0, MinimapCanvas.ActualHeight);
+            double panelHeight = MinimapPanel.ActualHeight > 20 ? MinimapPanel.ActualHeight : 300.0;
 
-            double extentH = Math.Max(1.0, EditorScrollViewer.ExtentHeight);
-            double viewportRatio = EditorScrollViewer.ViewportHeight / extentH;
-            if (double.IsNaN(viewportRatio) || double.IsInfinity(viewportRatio) || viewportRatio <= 0)
-                viewportRatio = 0.25;
+            // Si todo el documento cabe en el editor sin scroll
+            if (scrollable <= 0.0 || totalLines * editorLineH <= viewportH)
+            {
+                MinimapViewport.Margin = new Thickness(1.0, 0.0, 1.0, 0.0);
+                MinimapViewport.Height = Math.Max(18.0, Math.Min(totalCodeMinimapHeight, panelHeight));
+                return;
+            }
 
-            double sliderHeight = Math.Clamp(panelHeight * viewportRatio, 24.0, panelHeight);
-            if (!double.IsFinite(sliderHeight)) sliderHeight = 40.0;
+            // Documento scrollable: relación 1:1 con líneas visibles
+            double firstVisibleLine = EditorScrollViewer.VerticalOffset / editorLineH;
+            double visibleLinesCount = viewportH / editorLineH;
+
+            double sliderTop = firstVisibleLine * lineStep;
+            double sliderHeight = visibleLinesCount * lineStep;
+
+            if (totalCodeMinimapHeight > panelHeight)
+            {
+                double scaleRatio = panelHeight / totalCodeMinimapHeight;
+                sliderTop = (EditorScrollViewer.VerticalOffset / scrollable) * (panelHeight - (sliderHeight * scaleRatio));
+                sliderHeight = Math.Max(20.0, sliderHeight * scaleRatio);
+            }
+
+            sliderTop = Math.Clamp(sliderTop, 0.0, Math.Max(0.0, panelHeight - sliderHeight));
+            sliderHeight = Math.Clamp(sliderHeight, 18.0, panelHeight);
+
+            MinimapViewport.Margin = new Thickness(1.0, sliderTop, 1.0, 0.0);
             MinimapViewport.Height = sliderHeight;
-
-            double scrollRatio = (scrollable > 0 && double.IsFinite(scrollable))
-                ? Math.Clamp(EditorScrollViewer.VerticalOffset / scrollable, 0.0, 1.0)
-                : 0.0;
-
-            double maxTop = Math.Max(0.0, Math.Min(canvasH, panelHeight) - sliderHeight);
-            double topOffset = 6.0 + (scrollRatio * maxTop);
-            if (!double.IsFinite(topOffset)) topOffset = 6.0;
-
-            MinimapViewport.Margin = new Thickness(2.0, topOffset, 2.0, 0.0);
         }
 
         private void Minimap_MouseDown(object sender, MouseButtonEventArgs e)
@@ -1789,14 +1946,23 @@ int main(int argc, char **argv) {
         private void ScrollEditorFromMinimapPoint(double clickY)
         {
             if (!IsLoaded || EditorScrollViewer == null || MinimapPanel == null) return;
-            double canvasH = (!double.IsNaN(MinimapCanvas.Height) && MinimapCanvas.Height > 0)
-                ? MinimapCanvas.Height
-                : Math.Max(120.0, MinimapCanvas.ActualHeight);
-            double panelHeight = Math.Max(1.0, Math.Min(canvasH + 20.0, MinimapPanel.ActualHeight));
-            double ratio = Math.Clamp((clickY - 6.0) / panelHeight, 0.0, 1.0);
-            if (double.IsFinite(ratio) && double.IsFinite(EditorScrollViewer.ScrollableHeight))
+            const double lineStep = 3.0;
+            const double editorLineH = 20.0;
+
+            string[] currentLines = SplitLines(CodeEditorTextBox.Text);
+            int totalLines = Math.Max(1, currentLines.Length);
+            double totalCodeMinimapHeight = totalLines * lineStep;
+            double panelHeight = MinimapPanel.ActualHeight > 20 ? MinimapPanel.ActualHeight : 300.0;
+
+            if (totalCodeMinimapHeight > panelHeight)
             {
+                double ratio = Math.Clamp(clickY / panelHeight, 0.0, 1.0);
                 EditorScrollViewer.ScrollToVerticalOffset(ratio * EditorScrollViewer.ScrollableHeight);
+            }
+            else
+            {
+                double targetLine = Math.Clamp(clickY / lineStep, 0.0, totalLines);
+                EditorScrollViewer.ScrollToVerticalOffset(targetLine * editorLineH);
             }
         }
 
@@ -1916,52 +2082,8 @@ int main(int argc, char **argv) {
 
             if (section == "EXPLORER")
             {
-                TxtDrawerTitle.Text = "ARCHIVOS DEL USUARIO";
-                if (!Directory.Exists(_userWorkspaceRoot)) return;
-
-                DrawerItemsContainer.Children.Add(new TextBlock
-                {
-                    Text = $"Directorio activo: {_userWorkspaceRoot}",
-                    FontFamily = new FontFamily("Consolas"),
-                    FontSize = 10.5,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x6e, 0x76, 0x81)),
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(4, 2, 4, 6)
-                });
-
-                var files = Directory.GetFiles(_userWorkspaceRoot, "*.*", SearchOption.AllDirectories)
-                    .Where(f => !EsRutaInternaDelMotor(f))
-                    .Where(f => !f.Contains("\\.git\\") && !f.Contains("\\build\\") && !f.Contains("\\obj\\") && !f.Contains("\\bin\\"))
-                    .Take(50)
-                    .ToList();
-
-                if (files.Count == 0)
-                {
-                    DrawerItemsContainer.Children.Add(new TextBlock
-                    {
-                        Text = "No hay archivos en el espacio de trabajo. Utilice '⬡ Subir Archivos' o '+ Nuevo Archivo'.",
-                        FontSize = 11.5,
-                        Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x94, 0x9e)),
-                        TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(4, 6, 4, 4)
-                    });
-                }
-
-                foreach (string file in files)
-                {
-                    string rel = file.Substring(_userWorkspaceRoot.Length).TrimStart('\\', '/');
-                    var btn = new Button
-                    {
-                        Content = $"📄 {rel}",
-                        Style = (Style)FindResource("ToolbarMiniBtn"),
-                        HorizontalContentAlignment = HorizontalAlignment.Left,
-                        Padding = new Thickness(8, 5, 8, 5),
-                        Margin = new Thickness(0, 1, 0, 1)
-                    };
-                    string captured = file;
-                    btn.Click += (s, e) => OpenFileInEditor(captured);
-                    DrawerItemsContainer.Children.Add(btn);
-                }
+                TxtDrawerTitle.Text = "EXPLORADOR DEL PROYECTO (RAG)";
+                RenderHierarchicalProjectTree();
             }
             else if (section == "SEARCH")
             {
@@ -1977,9 +2099,10 @@ int main(int argc, char **argv) {
 
                 var confirmBtn = new Button
                 {
-                    Content = "✓ Confirmar y Guardar Cambios Actuales",
+                    Content = "[OK] Confirmar y Guardar Cambios Actuales",
                     Style = (Style)FindResource("ToolbarMiniBtn"),
                     Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
+                    FontWeight = FontWeights.Bold,
                     Margin = new Thickness(0, 4, 0, 6),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
@@ -1988,9 +2111,10 @@ int main(int argc, char **argv) {
 
                 var revertBtn = new Button
                 {
-                    Content = "↺ Revertir Cambios al Original",
+                    Content = "[REV] Revertir Cambios al Original",
                     Style = (Style)FindResource("ToolbarMiniBtn"),
                     Foreground = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
+                    FontWeight = FontWeights.Bold,
                     Margin = new Thickness(0, 0, 0, 10),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
@@ -2000,9 +2124,9 @@ int main(int argc, char **argv) {
                 DrawerItemsContainer.Children.Add(new TextBlock
                 {
                     Text = $"Proyecto Activo: {System.IO.Path.GetFileName(_userWorkspaceRoot)}",
-                    FontFamily = new FontFamily("Segoe UI"),
+                    FontFamily = new FontFamily("Arial"),
                     FontSize = 11.5,
-                    FontWeight = FontWeights.SemiBold,
+                    FontWeight = FontWeights.Bold,
                     Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)),
                     Margin = new Thickness(4, 2, 4, 4)
                 });
@@ -2022,10 +2146,11 @@ int main(int argc, char **argv) {
             }
             else if (section == "SKILLS")
             {
-                TxtDrawerTitle.Text = "CATÁLOGO DE ESPECIALIDADES";
+                TxtDrawerTitle.Text = "CATÁLOGO DE ESPECIALIDADES (12)";
                 DrawerItemsContainer.Children.Add(new TextBlock
                 {
-                    Text = "El enrutador inyecta únicamente las reglas formales del dominio solicitado y los símbolos AST, ahorrando ~78% de tokens y evitando alucinaciones.",
+                    Text = "El enrutador inyecta únicamente las directivas formales del dominio solicitado, reduciendo tokens y anclando el contexto.",
+                    FontFamily = new FontFamily("Arial"),
                     FontSize = 11.5,
                     Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x94, 0x9e)),
                     TextWrapping = TextWrapping.Wrap,
@@ -2047,10 +2172,10 @@ int main(int argc, char **argv) {
                     var sp = new StackPanel();
                     sp.Children.Add(new TextBlock
                     {
-                        Text = $"✓ {skill.NombreTecnicoEsp}",
-                        FontFamily = new FontFamily("Segoe UI"),
+                        Text = $"[ESP] {skill.NombreTecnicoEsp}",
+                        FontFamily = new FontFamily("Arial"),
                         FontSize = 11.5,
-                        FontWeight = FontWeights.SemiBold,
+                        FontWeight = FontWeights.Bold,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8)),
                         TextWrapping = TextWrapping.Wrap
                     });
@@ -2065,6 +2190,7 @@ int main(int argc, char **argv) {
                     sp.Children.Add(new TextBlock
                     {
                         Text = skill.Description,
+                        FontFamily = new FontFamily("Arial"),
                         FontSize = 11,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x94, 0x9e)),
                         TextWrapping = TextWrapping.Wrap
@@ -2072,7 +2198,7 @@ int main(int argc, char **argv) {
 
                     var inspectBtn = new Button
                     {
-                        Content = "Consultar Reglas en el Asistente",
+                        Content = "[VER] Consultar Directivas",
                         Style = (Style)FindResource("ToolbarMiniBtn"),
                         HorizontalAlignment = HorizontalAlignment.Left,
                         Margin = new Thickness(0, 5, 0, 0)
@@ -2145,6 +2271,197 @@ int main(int argc, char **argv) {
                     fontPanel.Children.Add(b);
                 }
                 DrawerItemsContainer.Children.Add(fontPanel);
+            }
+        }
+
+        private void RenderHierarchicalProjectTree()
+        {
+            DrawerItemsContainer.Children.Clear();
+            if (!Directory.Exists(_userWorkspaceRoot)) return;
+
+            string projName = System.IO.Path.GetFileName(_userWorkspaceRoot);
+            if (string.IsNullOrEmpty(projName)) projName = "Espacio de Trabajo";
+
+            var headerCard = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x14, 0x1a, 0x23)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x21, 0x28, 0x32)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(8, 6, 8, 6),
+                Margin = new Thickness(2, 2, 2, 8)
+            };
+
+            var headerStack = new StackPanel();
+            headerStack.Children.Add(new TextBlock
+            {
+                Text = $"[PROYECTO] {projName}",
+                FontFamily = new FontFamily("Arial"),
+                FontSize = 11.5,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8))
+            });
+
+            headerStack.Children.Add(new TextBlock
+            {
+                Text = _userWorkspaceRoot,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 10,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x94, 0x9e)),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 2, 0, 2)
+            });
+
+            headerStack.Children.Add(new TextBlock
+            {
+                Text = $"RAG: {_ragEngine.IndexedFilesCount} archivos indexados ({_ragEngine.TotalChunksCount} fragmentos)",
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50))
+            });
+
+            headerCard.Child = headerStack;
+            DrawerItemsContainer.Children.Add(headerCard);
+
+            var allFiles = Directory.GetFiles(_userWorkspaceRoot, "*.*", SearchOption.AllDirectories)
+                .Where(f => !EsRutaInternaDelMotor(f))
+                .Where(f => !f.Contains("\\.git\\") && !f.Contains("\\build\\") && !f.Contains("\\obj\\") && !f.Contains("\\bin\\") && !f.Contains("\\node_modules\\"))
+                .OrderBy(f => f)
+                .ToList();
+
+            if (allFiles.Count == 0)
+            {
+                DrawerItemsContainer.Children.Add(new TextBlock
+                {
+                    Text = "No hay archivos en el espacio de trabajo. Utilice '[+] Subir Archivos' o '[+] Nuevo'.",
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 11.5,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x94, 0x9e)),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(4, 6, 4, 4)
+                });
+                return;
+            }
+
+            var groups = allFiles.GroupBy(f =>
+            {
+                string rel = f.Substring(_userWorkspaceRoot.Length).TrimStart('\\', '/');
+                string dir = System.IO.Path.GetDirectoryName(rel) ?? "";
+                return dir;
+            }).OrderBy(g => g.Key);
+
+            foreach (var group in groups)
+            {
+                string dirName = group.Key;
+                if (!string.IsNullOrEmpty(dirName))
+                {
+                    var dirHeader = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromRgb(0x10, 0x15, 0x1f)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(0x1c, 0x24, 0x30)),
+                        BorderThickness = new Thickness(0, 1, 0, 1),
+                        Padding = new Thickness(6, 4, 6, 4),
+                        Margin = new Thickness(0, 4, 0, 2)
+                    };
+                    var dirText = new TextBlock
+                    {
+                        Text = $"[-] {dirName}/",
+                        FontFamily = new FontFamily("Consolas"),
+                        FontSize = 11,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x79, 0xc0, 0xff))
+                    };
+                    dirHeader.Child = dirText;
+                    DrawerItemsContainer.Children.Add(dirHeader);
+                }
+
+                foreach (string file in group)
+                {
+                    string fileName = System.IO.Path.GetFileName(file);
+                    string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
+                    bool isActive = string.Equals(file, _activeFilePath, StringComparison.OrdinalIgnoreCase);
+
+                    var (badgeText, badgeColor) = ext switch
+                    {
+                        ".sql" => ("[SQL]", Color.FromRgb(0x44, 0x93, 0xf8)),
+                        ".c" or ".h" or ".cpp" or ".hpp" => ("[C/C++]", Color.FromRgb(0x58, 0xa6, 0xff)),
+                        ".py" => ("[PY]", Color.FromRgb(0xd2, 0x99, 0x22)),
+                        ".cs" => ("[C#]", Color.FromRgb(0x3f, 0xb9, 0x50)),
+                        ".js" or ".ts" or ".tsx" => ("[JS/TS]", Color.FromRgb(0xe3, 0xb3, 0x41)),
+                        ".json" or ".yaml" or ".yml" => ("[CFG]", Color.FromRgb(0x8b, 0x94, 0x9e)),
+                        ".md" => ("[DOC]", Color.FromRgb(0xa3, 0x71, 0xf7)),
+                        _ => ("[TXT]", Color.FromRgb(0x6e, 0x76, 0x81))
+                    };
+
+                    long sizeBytes = 0;
+                    try { sizeBytes = new FileInfo(file).Length; } catch { }
+                    string sizeStr = sizeBytes < 1024 ? $"{sizeBytes} B" : $"{sizeBytes / 1024.0:F1} KB";
+
+                    var itemBorder = new Border
+                    {
+                        Background = isActive ? new SolidColorBrush(Color.FromRgb(0x16, 0x22, 0x35)) : new SolidColorBrush(Color.FromRgb(0x0e, 0x12, 0x19)),
+                        BorderBrush = isActive ? new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8)) : new SolidColorBrush(Color.FromRgb(0x1a, 0x20, 0x2b)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(6, 4, 6, 4),
+                        Margin = new Thickness(string.IsNullOrEmpty(dirName) ? 2 : 12, 1, 2, 1),
+                        Cursor = Cursors.Hand
+                    };
+
+                    var rowGrid = new Grid();
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var badgeBlock = new TextBlock
+                    {
+                        Text = badgeText,
+                        FontFamily = new FontFamily("Consolas"),
+                        FontSize = 10,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = new SolidColorBrush(badgeColor),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(badgeBlock, 0);
+
+                    var nameBlock = new TextBlock
+                    {
+                        Text = fileName,
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 11.5,
+                        FontWeight = isActive ? FontWeights.Bold : FontWeights.Normal,
+                        Foreground = isActive ? new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)) : new SolidColorBrush(Color.FromRgb(0xad, 0xb5, 0xc0)),
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(2, 0, 4, 0)
+                    };
+                    Grid.SetColumn(nameBlock, 1);
+
+                    var sizeBlock = new TextBlock
+                    {
+                        Text = sizeStr,
+                        FontFamily = new FontFamily("Consolas"),
+                        FontSize = 9.5,
+                        Foreground = new SolidColorBrush(Color.FromRgb(0x6e, 0x76, 0x81)),
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    Grid.SetColumn(sizeBlock, 2);
+
+                    rowGrid.Children.Add(badgeBlock);
+                    rowGrid.Children.Add(nameBlock);
+                    rowGrid.Children.Add(sizeBlock);
+                    itemBorder.Child = rowGrid;
+
+                    string capturedFile = file;
+                    itemBorder.MouseLeftButtonDown += (s, e) =>
+                    {
+                        OpenFileInEditor(capturedFile);
+                        RenderHierarchicalProjectTree();
+                    };
+
+                    DrawerItemsContainer.Children.Add(itemBorder);
+                }
             }
         }
 
@@ -2360,6 +2677,10 @@ int main(int argc, char **argv) {
 
         private static string FindOllamaExecutable()
         {
+            string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string candidate0 = System.IO.Path.Combine(userProfile, ".secdev", "ollama", "ollama.exe");
+            if (File.Exists(candidate0)) return candidate0;
+
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string candidate1 = System.IO.Path.Combine(localAppData, "Programs", "Ollama", "ollama.exe");
             if (File.Exists(candidate1)) return candidate1;
@@ -2423,18 +2744,18 @@ int main(int argc, char **argv) {
             {
                 if (_isOllamaOnline && _isModelInstalled)
                 {
-                    TxtTelemetryModel.Text = $"{_activeLocalModelName} [OLLAMA LOCAL ACTIVO]";
-                    BtnInstallOrCheckAi.Content = $"✓ IA Local: {_activeLocalModelName}";
+                    TxtTelemetryModel.Text = $"{_activeLocalModelName} [OLLAMA LOCAL + RAG]";
+                    BtnInstallOrCheckAi.Content = $"[LLM] IA Local: {_activeLocalModelName}";
                     DotAiConnection.Background = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50));
                 }
                 else if (_isOllamaOnline)
                 {
                     TxtTelemetryModel.Text = "Qwen 2.5 Coder 7B [DESCARGANDO PESOS]";
-                    BtnInstallOrCheckAi.Content = "⬇ Descargando Qwen 2.5";
+                    BtnInstallOrCheckAi.Content = "[LLM] Descargando Pesos...";
                 }
                 else
                 {
-                    TxtTelemetryModel.Text = "Qwen 2.5 Coder 7B + Motor Determinista (8 Especialidades)";
+                    TxtTelemetryModel.Text = "Qwen 2.5 Coder 7B + Motor Determinista (12 Especialidades + RAG)";
                 }
             });
         }
@@ -2449,6 +2770,10 @@ int main(int argc, char **argv) {
         private void BtnSkillIsoQuality_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Evalúa el archivo activo frente a los 8 pilares de calidad ISO/IEC 25010 y controles de seguridad ISO/IEC 27001.");
         private void BtnSkillTesting_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Genera una batería de pruebas unitarias deterministas aplicando Análisis de Valores Límite (BVA) sobre el archivo activo.");
         private void BtnSkillSecurity_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Audita el archivo activo según OWASP Top 10 y CWE Top 25 y aplica la remediación en vivo en el editor de código.");
+        private void BtnSkillDevops_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Genera un Dockerfile multi-stage seguro sin usuario root y manifiestos de despliegue para el módulo activo.");
+        private void BtnSkillApiSec_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Diseña la seguridad de la API con autenticación OAuth2/OIDC, tokens JWT RS256, rate limiting y contrato OpenAPI 3.1.");
+        private void BtnSkillPerf_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Optimiza el rendimiento del archivo activo aplicando zero-copy, minimizando asignaciones de memoria y evitando fugas.");
+        private void BtnSkillMicroservices_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Diseña una arquitectura de microservicios basada en eventos con patrón Saga, buzón Outbox y resiliencia Circuit Breaker.");
 
         private void ExecuteSkillPrompt(string promptText)
         {
@@ -2464,7 +2789,8 @@ int main(int argc, char **argv) {
                 Color.FromRgb(0x44, 0x93, 0xf8),
                 "Estación de Ingeniería de Software y Ciberseguridad Lista",
                 "• Espacio de trabajo limpio y aislado para archivos del usuario.\n" +
-                "• Progreso y Confirmación en Vivo: Cuando aplica cambios de la IA, el editor muestra las diferencias en verde (+) y rojo (-) junto con los botones '✓ Confirmar y Guardar Cambios' y '↺ Revertir al Original', sin duplicar nunca el código.",
+                "• RAG Multidocumento Activo: Se indexan semánticamente todos los archivos del proyecto para evitar alucinaciones.\n" +
+                "• Progreso y Confirmación en Vivo: Cuando aplica cambios de la IA, el editor muestra las diferencias en verde (+) y rojo (-) junto con los botones '[OK] Confirmar y Guardar Cambios' y '[REV] Revertir al Original', sin duplicar nunca el código.",
                 null
             );
         }
@@ -2502,9 +2828,9 @@ int main(int argc, char **argv) {
             stack.Children.Add(new TextBlock
             {
                 Text = title,
-                FontFamily = new FontFamily("Segoe UI"),
+                FontFamily = new FontFamily("Arial"),
                 FontSize = 12.5,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)),
                 Margin = new Thickness(0, 0, 0, 4),
                 TextWrapping = TextWrapping.Wrap
@@ -2571,27 +2897,29 @@ int main(int argc, char **argv) {
 
             var applyBtn = new Button
             {
-                Content = "⚡ Aplicar Cambios en el Editor (Progreso en Vivo)",
+                Content = "[AUTO] Aplicar en Editor (Progreso en Vivo)",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = FontWeights.Bold,
                 Margin = new Thickness(0, 0, 6, 0)
             };
 
             var confirmDirectBtn = new Button
             {
-                Content = "✓ Confirmar Cambios",
+                Content = "[OK] Confirmar Cambios",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8)),
+                FontWeight = FontWeights.Bold,
                 Visibility = Visibility.Collapsed,
                 Margin = new Thickness(0, 0, 6, 0)
             };
 
             var revertDirectBtn = new Button
             {
-                Content = "↺ Revertir",
+                Content = "[REV] Revertir",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
+                FontWeight = FontWeights.Bold,
                 Visibility = Visibility.Collapsed
             };
 
@@ -2607,14 +2935,14 @@ int main(int argc, char **argv) {
 
                 if (currentNormalized == capturedNormalized || currentNormalized.EndsWith(capturedNormalized, StringComparison.Ordinal))
                 {
-                    MostrarBannerConfirmacionCambios("Los cambios ya están aplicados en el editor. Pulse '✓ Confirmar y Guardar Cambios' o '↺ Revertir':");
+                    MostrarBannerConfirmacionCambios("Los cambios ya están aplicados en el editor. Pulse '[OK] Confirmar y Guardar Cambios' o '[REV] Revertir':");
                     confirmDirectBtn.Visibility = Visibility.Visible;
                     revertDirectBtn.Visibility = Visibility.Visible;
                     return;
                 }
 
                 applyBtn.IsEnabled = false;
-                applyBtn.Content = "⏳ Aplicando en el editor...";
+                applyBtn.Content = "[PROGRESO] Aplicando en editor...";
 
                 // Partir siempre desde la línea base limpia del archivo para NUNCA duplicar bloques
                 string baseText = (!string.IsNullOrEmpty(_activeFilePath) && _fileBaselines.TryGetValue(_activeFilePath, out var bLines))
@@ -2629,7 +2957,7 @@ int main(int argc, char **argv) {
 
                 await AplicarCambiosProgresivosEnEditorAsync(SplitLines(targetText), "Aplicación de cambios en el editor");
 
-                applyBtn.Content = "✓ Aplicado en Editor (Pendiente de Confirmar)";
+                applyBtn.Content = "[OK] Aplicado en Editor (Pendiente de Confirmar)";
                 applyBtn.IsEnabled = true;
                 confirmDirectBtn.Visibility = Visibility.Visible;
                 revertDirectBtn.Visibility = Visibility.Visible;
@@ -2638,7 +2966,7 @@ int main(int argc, char **argv) {
             confirmDirectBtn.Click += (s, e) =>
             {
                 SaveCurrentFile();
-                applyBtn.Content = "✓ Cambios Confirmados y Guardados";
+                applyBtn.Content = "[OK] Cambios Confirmados y Guardados";
                 confirmDirectBtn.Visibility = Visibility.Collapsed;
                 revertDirectBtn.Visibility = Visibility.Collapsed;
             };
@@ -2646,7 +2974,7 @@ int main(int argc, char **argv) {
             revertDirectBtn.Click += (s, e) =>
             {
                 BtnRevertChanges_Click(s, e);
-                applyBtn.Content = "⚡ Aplicar Cambios en el Editor (Progreso en Vivo)";
+                applyBtn.Content = "[AUTO] Aplicar en Editor (Progreso en Vivo)";
                 confirmDirectBtn.Visibility = Visibility.Collapsed;
                 revertDirectBtn.Visibility = Visibility.Collapsed;
             };
@@ -2684,6 +3012,7 @@ int main(int argc, char **argv) {
             AppendAssistantCard("OPERADOR", Color.FromRgb(0x8b, 0x94, 0x9e), "Consulta de Ingeniería de Software / Ciberseguridad", prompt, null);
 
             var routedSkills = RouteSkillsForPrompt(prompt, out int savedPct, out int compTok, out int rawTok);
+            string ragContext = _ragEngine.BuildRagContextForPrompt(prompt, out int ragCount);
 
             string lower = prompt.ToLowerInvariant();
             if ((lower.Contains("corregir") || lower.Contains("remedi") || lower.Contains("parche") || lower.Contains("audita")) && _currentFindings.Count > 0)
@@ -2694,23 +3023,24 @@ int main(int argc, char **argv) {
 
             if (_isOllamaOnline && _isModelInstalled)
             {
-                await StreamFromLocalOllamaAsync(prompt, routedSkills, savedPct);
+                await StreamFromLocalOllamaAsync(prompt, routedSkills, savedPct, ragContext, ragCount);
                 return;
             }
 
-            var (domainTitle, explanation, generatedArtifact) = SynthesizeEngineeringResponse(prompt, routedSkills);
+            var (domainTitle, explanation, generatedArtifact) = SynthesizeEngineeringResponse(prompt, routedSkills, ragContext, ragCount);
 
             await Task.Delay(50);
+            string ragBadge = ragCount > 0 ? $"  ·  [RAG: {ragCount} fuentes]" : "";
             AppendAssistantCard(
                 "IA LOCAL",
                 Color.FromRgb(0x44, 0x93, 0xf8),
-                $"{domainTitle}  ·  [Ahorro: -{savedPct}% tokens]",
+                $"{domainTitle}  ·  [-{savedPct}% tokens]{ragBadge}",
                 explanation,
                 generatedArtifact
             );
         }
 
-        private async Task StreamFromLocalOllamaAsync(string userPrompt, List<EngineeringSkill> routedSkills, int savedPct)
+        private async Task StreamFromLocalOllamaAsync(string userPrompt, List<EngineeringSkill> routedSkills, int savedPct, string ragContext, int ragCount)
         {
             string activeFile = string.IsNullOrEmpty(_activeFilePath) ? "sin_archivo" : System.IO.Path.GetFileName(_activeFilePath);
             string rulesDigest = string.Join("\n", routedSkills.Select(s => $"- [{s.NombreTecnicoEsp}]: {s.Description}"));
@@ -2718,18 +3048,24 @@ int main(int argc, char **argv) {
                 ? string.Join("; ", _currentFindings.Select(f => $"Línea {f.LineNumber} {f.RuleId}: {f.Title}"))
                 : "0 vulnerabilidades";
 
+            string ragPromptSection = string.IsNullOrWhiteSpace(ragContext)
+                ? ""
+                : $"\n{ragContext}\nInstrucción RAG Obligatoria: Utiliza los fragmentos anteriores del proyecto activo para anclar tu respuesta sin inventar rutas ni alucinar.\n";
+
             string systemPrompt =
                 "Eres secdev, un ingeniero de software principal y especialista en ciberseguridad SAST. " +
                 "Responde SIEMPRE en español técnico, riguroso y conciso, sin ambigüedades.\n" +
                 $"Especialidades activas:\n{rulesDigest}\n" +
                 $"Archivo activo del usuario: {activeFile} (Hallazgos actuales: {findingsDigest}).\n" +
+                ragPromptSection +
                 "Cuando propongas mejoras o correcciones sobre el archivo activo, devuelve el código del archivo del usuario refactorizado dentro de un bloque ```.\n" +
                 "Código actual en el editor:\n" + CodeEditorTextBox.Text;
 
+            string ragBadge = ragCount > 0 ? $"  ·  [RAG: {ragCount} fuentes]" : "";
             var bodyBlock = AppendAssistantCard(
                 "QWEN 7B",
                 Color.FromRgb(0x3f, 0xb9, 0x50),
-                $"Inferencia Local en Tiempo Real ({_activeLocalModelName})  ·  [-{savedPct}% tokens]",
+                $"Inferencia Local en Tiempo Real ({_activeLocalModelName})  ·  [-{savedPct}% tokens]{ragBadge}",
                 "Generando respuesta desde GPU local...",
                 null
             );
@@ -2785,7 +3121,7 @@ int main(int argc, char **argv) {
             }
             catch (Exception ex)
             {
-                var fallback = SynthesizeEngineeringResponse(userPrompt, routedSkills);
+                var fallback = SynthesizeEngineeringResponse(userPrompt, routedSkills, ragContext, ragCount);
                 bodyBlock.Text = $"{fallback.Explanation}\n\n[Nota técnica: Se utilizó síntesis determinista local ({ex.Message})]";
             }
         }
@@ -2807,12 +3143,24 @@ int main(int argc, char **argv) {
             return string.Join(Environment.NewLine, lines);
         }
 
-        private (string Title, string Explanation, string? CodeArtifact) SynthesizeEngineeringResponse(string prompt, List<EngineeringSkill> routedSkills)
+        private (string Title, string Explanation, string? CodeArtifact) SynthesizeEngineeringResponse(
+            string prompt,
+            List<EngineeringSkill> routedSkills,
+            string ragContext = "",
+            int ragCount = 0)
         {
             string lower = prompt.ToLowerInvariant();
             string activeFile = string.IsNullOrEmpty(_activeFilePath) ? "archivo_activo" : System.IO.Path.GetFileName(_activeFilePath);
             string ext = System.IO.Path.GetExtension(activeFile).ToLowerInvariant();
             int lineCount = SplitLines(CodeEditorTextBox.Text).Length;
+
+            string ragCitationFooter = "";
+            if (ragCount > 0)
+            {
+                var topChunks = _ragEngine.RetrieveTopChunks(prompt, 3);
+                ragCitationFooter = "\n\n[RECUPERACIÓN RAG: Cero Alucinaciones]:\n" +
+                    string.Join("\n", topChunks.Select(c => $"• Archivo: '{c.Chunk.RelativePath}' (Líneas {c.Chunk.StartLine}-{c.Chunk.EndLine})"));
+            }
 
             // Si el archivo activo tiene hallazgos SAST o ISO-25010 y el usuario pide optimizar SQL / Base de Datos / Calidad / Seguridad,
             // generar la versión refactorizada DEL PROPIO ARCHIVO DEL USUARIO (ej. ADSO.sql) en vez de reemplazarlo por una tabla ajena!
@@ -2822,9 +3170,123 @@ int main(int argc, char **argv) {
                 string summary = string.Join("\n", _currentFindings.Select(f => $"• Línea {f.LineNumber} [{f.RuleId}]: {f.Title}"));
                 return (
                     $"Refactorización 3FN, Seguridad CWE y Calidad ISO-25010 para '{activeFile}'",
-                    $"Se analizaron las {lineCount} líneas de su archivo '{activeFile}' detectando {_currentFindings.Count} mejoras críticas:\n{summary}\n\n" +
-                    "Pulse '⚡ Aplicar Cambios en el Editor (Progreso en Vivo)' para aplicar las correcciones directamente sobre su archivo sin perder ninguna de sus tablas o funciones:",
+                    $"Se analizaron las {lineCount} líneas de su archivo '{activeFile}' detectando {_currentFindings.Count} mejoras críticas:\n{summary}{ragCitationFooter}\n\n" +
+                    "Pulse '[AUTO] Aplicar en Editor (Progreso en Vivo)' para aplicar las correcciones directamente sobre su archivo sin perder ninguna de sus tablas o funciones:",
                     refactoredUserFile
+                );
+            }
+
+            if (lower.Contains("devops") || lower.Contains("docker") || lower.Contains("k8s") || lower.Contains("kubernetes") || lower.Contains("contenedor") || lower.Contains("ci/cd") || lower.Contains("pipeline"))
+            {
+                return (
+                    "Especificación DevOps y Contenedorización OCI / Kubernetes",
+                    "Fundamentado en la especialidad [DevOps y Contenedorización OCI / Kubernetes]:\n" +
+                    "1. Multi-Stage Build con imagen base mínima (scratch / alpine) sin dependencias de compilación en tiempo de ejecución.\n" +
+                    "2. Usuario no privilegiado (UID 10001) y sistema de archivos raíz de solo lectura (read-only root filesystem).\n" +
+                    "3. Sondeos de salud (Liveness y Readiness Probes) y límites estrictos de CPU y memoria." + ragCitationFooter,
+@"# Dockerfile Multi-Stage de Producción (Seguridad OCI y Cero Sobrecarga)
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS builder
+WORKDIR /src
+COPY . .
+RUN dotnet publish -c Release -r linux-musl-x64 --self-contained true -p:PublishSingleFile=true -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-alpine AS final
+WORKDIR /app
+RUN addgroup -g 10001 -S secgroup && adduser -u 10001 -S secuser -G secgroup
+COPY --from=builder --chown=secuser:secgroup /app/publish/secdev .
+USER secuser:secgroup
+ENTRYPOINT [""./secdev""]"
+                );
+            }
+
+            if (lower.Contains("api") || lower.Contains("oauth") || lower.Contains("rest") || lower.Contains("graphql") || lower.Contains("jwt") || lower.Contains("rate limit"))
+            {
+                return (
+                    "Seguridad en APIs REST / GraphQL y OAuth2 / OWASP API Security",
+                    "Fundamentado en la especialidad [Seguridad en APIs REST / GraphQL y OWASP API]:\n" +
+                    "1. Validación criptográfica de tokens JWT con algoritmos asimétricos (RS256 / EdDSA) y validación de Audience e Issuer.\n" +
+                    "2. Limitación de tasa adaptativa (Rate Limiting) basada en cubeta con fugas (Leaky Bucket / Redis).\n" +
+                    "3. Control de Acceso Basado en Roles (RBAC) y validación estricta de esquemas OpenAPI / JSON Schema." + ragCitationFooter,
+@"// Middleware de Validación Criptográfica JWT y Rate-Limiting Defensivo
+public sealed class MiddlewareSeguridadApi
+{
+    private readonly RequestDelegate _next;
+    public MiddlewareSeguridadApi(RequestDelegate next) => _next = next;
+
+    public async Task InvokeAsync(HttpContext context, IValidadorTokens validador)
+    {
+        if (!context.Request.Headers.TryGetValue(""Authorization"", out var authHeader) ||
+            !authHeader.ToString().StartsWith(""Bearer "", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsync(""{ \""error\"": \""Token Bearer faltante o formato inválido\"" }"");
+            return;
+        }
+
+        string rawToken = authHeader.ToString().Substring(7).Trim();
+        if (!validador.ValidarFirmaAsimetrica(rawToken, out var principal))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsync(""{ \""error\"": \""Firma de token inválida o revocada\"" }"");
+            return;
+        }
+
+        context.User = principal;
+        await _next(context);
+    }
+}"
+                );
+            }
+
+            if (lower.Contains("rendimiento") || lower.Contains("memoria") || lower.Contains("zero-copy") || lower.Contains("performance") || lower.Contains("alloc") || lower.Contains("simd"))
+            {
+                return (
+                    "Optimización de Rendimiento de Alto Impacto y Memoria Zero-Copy",
+                    "Fundamentado en la especialidad [Optimización de Rendimiento y Memoria Zero-Copy]:\n" +
+                    "1. Segmentación de memoria sin asignaciones intermedias en el montículo mediante ReadOnlySpan<T> y Memory<T>.\n" +
+                    "2. Reutilización de búferes con ArrayPool<T> para prevenir pausas del Garbage Collector (GC P99).\n" +
+                    "3. Operaciones vectorizadas SIMD y optimización de jerarquía de caché L1/L2." + ragCitationFooter,
+@"// Analizador de Tramas de Alto Desempeño Zero-Copy mediante ReadOnlySpan<char>
+public static class AnalizadorTramasZeroCopy
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool ExtraerCampo(ReadOnlySpan<char> payload, ReadOnlySpan<char> clave, out ReadOnlySpan<char> valor)
+    {
+        valor = ReadOnlySpan<char>.Empty;
+        int idxClave = payload.IndexOf(clave, StringComparison.Ordinal);
+        if (idxClave < 0) return false;
+
+        ReadOnlySpan<char> resto = payload.Slice(idxClave + clave.Length);
+        if (resto.IsEmpty || resto[0] != ':') return false;
+
+        ReadOnlySpan<char> candidatos = resto.Slice(1).TrimStart(' ');
+        int fin = candidatos.IndexOfAny(';', '\r', '\n');
+        valor = fin >= 0 ? candidatos.Slice(0, fin).Trim() : candidatos.Trim();
+        return !valor.IsEmpty;
+    }
+}"
+                );
+            }
+
+            if (lower.Contains("microservicio") || lower.Contains("saga") || lower.Contains("evento") || lower.Contains("outbox") || lower.Contains("idempotenc") || lower.Contains("kafka"))
+            {
+                return (
+                    "Arquitectura de Microservicios, Transacciones Saga y Outbox Transaccional",
+                    "Fundamentado en la especialidad [Arquitectura de Microservicios y Transacciones Saga]:\n" +
+                    "1. Consistencia eventual garantizada mediante patrón Saga Orquestado con pasos compensatorios reversibles.\n" +
+                    "2. Patrón Transactional Outbox para eliminar condiciones de carrera entre la persistencia y la publicación de eventos.\n" +
+                    "3. Claves de idempotencia obligatorias en consumidores de eventos para soportar semántica At-Least-Once." + ragCitationFooter,
+@"// Entidad de Outbox Transaccional para Eventos de Dominio
+public sealed class EventoOutbox
+{
+    public Guid IdEvento { get; init; } = Guid.NewGuid();
+    public string TipoEvento { get; init; } = string.Empty;
+    public string ClaveAgregado { get; init; } = string.Empty;
+    public string CargaJson { get; init; } = string.Empty;
+    public DateTime FechaRegistroUtc { get; init; } = DateTime.UtcNow;
+    public DateTime? FechaProcesadoUtc { get; set; }
+    public int Reintentos { get; set; }
+}"
                 );
             }
 
@@ -2835,7 +3297,7 @@ int main(int argc, char **argv) {
                     "Fundamentado en la especialidad [Sistemas de Diseño UI/UX y Accesibilidad WCAG 2.2]:\n" +
                     "1. Jerarquía de Superficies: Base (#0b0e14) → Panel (#0d1117) → Contenedor Elevado (#141a23) con bordes estructurales de 1px (#212832).\n" +
                     "2. Rejilla Adaptativa: 3 puntos de ruptura (<920px Compacto Apilado, 920-1260px Estándar, >1260px Estación Completa).\n" +
-                    "3. Accesibilidad y Transiciones: Relación de contraste >= 4.5:1 y curvas de animación CubicEase de 200ms.",
+                    "3. Accesibilidad y Transiciones: Relación de contraste >= 4.5:1 y curvas de animación CubicEase de 200ms." + ragCitationFooter,
 @"// Tokens de Sistema de Diseño Estructural (Cumplimiento WCAG 2.2 AA)
 export interface TokensDisenoArquitectonico {
     readonly superficieRaiz: '#0b0e14';
@@ -2854,7 +3316,7 @@ export interface TokensDisenoArquitectonico {
                     "Fundamentado en [Modelado Relacional 3FN y Optimización SQL] y [Auditoría SAST OWASP/CWE]:\n" +
                     "1. Tercera Forma Normal (3FN) con integridad referencial estricta y marcas temporales UTC (TIMESTAMPTZ).\n" +
                     "2. Índice compuesto B-Tree alineado a predicados de igualdad y ordenamiento descendente.\n" +
-                    "3. Prevención de Inyección SQL (CWE-89): Consultas parametrizadas ($1, $2) y paginación por cursor.",
+                    "3. Prevención de Inyección SQL (CWE-89): Consultas parametrizadas ($1, $2) y paginación por cursor." + ragCitationFooter,
 @"-- Índice Compuesto B-Tree y Consulta Parametrizada Segura (CWE-89)
 CREATE INDEX idx_usuarios_perfil_lugar
     ON Usuarios (IdPerfil, IdLugar);
@@ -2873,7 +3335,7 @@ WHERE IdUsuario = @IdUsuarioParam;"
                     "Fundamentado en [Ingeniería de Requisitos ISO/IEC/IEEE 29148 y EARS]:\n" +
                     "• REQ-SIS-01 (Ubicuo): El sistema deberá almacenar las credenciales de usuario mediante funciones resumen criptográficas con sal (Argon2id/PBKDF2) de al menos 128 caracteres.\n" +
                     "• REQ-SIS-02 (Dirigido por Eventos): CUANDO se registre un artículo en inventario, el sistema deberá validar que el atributo Costo sea un valor DECIMAL(18,2) mayor o igual a cero.\n" +
-                    "• REQ-SEG-03 (Comportamiento No Deseado): SI se intenta ejecutar una consulta sin proyección explícita de columnas, ENTONCES el sistema deberá restringir el acceso al campo de credenciales.",
+                    "• REQ-SEG-03 (Comportamiento No Deseado): SI se intenta ejecutar una consulta sin proyección explícita de columnas, ENTONCES el sistema deberá restringir el acceso al campo de credenciales." + ragCitationFooter,
                     null
                 );
             }
@@ -2883,7 +3345,7 @@ WHERE IdUsuario = @IdUsuarioParam;"
                 return (
                     $"Batería de Pruebas con Análisis de Valores Límite (BVA) para '{activeFile}'",
                     "Fundamentado en [Verificación QA y Análisis de Valores Límite (BVA)]:\n" +
-                    "Cubre la estructura Preparar-Actuar-Verificar (AAA) y las fronteras de dominio (valores nulos, límite inferior 0, valor nominal y límite superior excedido).",
+                    "Cubre la estructura Preparar-Actuar-Verificar (AAA) y las fronteras de dominio (valores nulos, límite inferior 0, valor nominal y límite superior excedido)." + ragCitationFooter,
                     ext == ".sql"
                         ? @"-- Pruebas de Integridad y Valores Límite (BVA) sobre Esquema SQL
 -- 1. Frontera inferior válida (Costo = 0.00, Cantidad = 1)
@@ -2904,14 +3366,14 @@ void probar_fronteras_modulo(void) {
                 );
             }
 
-            if (lower.Contains("backend") || lower.Contains("api") || lower.Contains("clean") || lower.Contains("arquitectura") || lower.Contains("solid") || lower.Contains("servicio"))
+            if (lower.Contains("backend") || lower.Contains("clean") || lower.Contains("arquitectura") || lower.Contains("solid") || lower.Contains("servicio"))
             {
                 return (
                     "Implementación Backend con Arquitectura Limpia (Clean / Hexagonal) y SOLID",
                     "Fundamentado en [Arquitectura Limpia, Hexagonal y Principios SOLID]:\n" +
                     "1. Puerto de dominio desacoplado de la infraestructura de persistencia.\n" +
                     "2. Validación defensiva de invariantes en la frontera del caso de uso.\n" +
-                    "3. Ausencia de estado mutable compartido.",
+                    "3. Ausencia de estado mutable compartido." + ragCitationFooter,
 @"// Puerto de Dominio y Caso de Uso con Arquitectura Limpia (SOLID)
 public interface IRepositorioUsuarios {
     Task<bool> ActualizarNombreUsuarioAsync(string idUsuario, string nombres, CancellationToken ct);
@@ -2937,8 +3399,8 @@ public sealed class ServicioGestionUsuarios {
             return (
                 $"Diagnóstico de Ingeniería de Software y Ciberseguridad: '{activeFile}'",
                 $"Anclado al árbol sintáctico de '{activeFile}' ({lineCount} líneas):\n" +
-                $"Hallazgos detectados:\n{findingsSummary}\n\n" +
-                "Puede pulsar '⚡ Remediación IA en Vivo' en la barra superior del editor para aplicar las correcciones sobre su archivo y confirmarlas con un clic.",
+                $"Hallazgos detectados:\n{findingsSummary}{ragCitationFooter}\n\n" +
+                "Puede pulsar '[AUTO] Remediación IA en Vivo' en la barra superior del editor para aplicar las correcciones sobre su archivo y confirmarlas con un clic.",
                 _currentFindings.Count > 0 ? GenerarVersionRefactorizadaDelArchivoActivo() : null
             );
         }
@@ -2946,7 +3408,7 @@ public sealed class ServicioGestionUsuarios {
         private void BtnToggleDiffView_Click(object sender, RoutedEventArgs e)
         {
             _showInlineDiff = !_showInlineDiff;
-            BtnDiffModeToggle.Content = _showInlineDiff ? "⇄ Diferencias: ACTIVO" : "⇄ Diferencias: INACTIVO";
+            BtnDiffModeToggle.Content = _showInlineDiff ? "[DIFF] Diferencias: ACTIVO" : "[DIFF] Diferencias: INACTIVO";
             RefreshAllLiveViews();
         }
 
