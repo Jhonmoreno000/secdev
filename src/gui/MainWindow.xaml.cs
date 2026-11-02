@@ -32,8 +32,8 @@ namespace Secdev.Workstation
         // Directorio aislado para los archivos y proyectos subidos por el usuario
         private string _userWorkspaceRoot = "";
         private string _activeFilePath = "";
-        private string _activeDrawerSection = "";
-        private bool _isDrawerOpen = false;
+        private string _activeDrawerSection = "EXPLORER";
+        private bool _isDrawerOpen = true;
         private bool _showInlineDiff = true;
         private bool _forceStackedLayout = false;
         private bool _isVulnExpanded = true;
@@ -406,6 +406,12 @@ int main(int argc, char **argv) {
                 ClearEditorToEmptyState();
             }
 
+            _isDrawerOpen = true;
+            _activeDrawerSection = "EXPLORER";
+            SideDrawerBorder.Width = 280;
+            UpdateSidebarIndicators("EXPLORER");
+            PopulateDrawerSection("EXPLORER");
+
             AppendInitialAssistantContext();
         }
 
@@ -413,7 +419,7 @@ int main(int argc, char **argv) {
         {
             _activeFilePath = "";
             _suppressTextChanged = true;
-            CodeEditorTextBox.Text = "// Espacio de trabajo limpio.\n// Utilice los botones superiores '[+] Subir Archivos', '[+] Nuevo' o '[>] Abrir Proyecto' para cargar sus proyectos.";
+            CodeEditorTextBox.Text = string.Empty;
             _suppressTextChanged = false;
             TxtBreadcrumbPath.Text = "Espacio de Trabajo › Sin archivos abiertos";
             PanelProgresoEdicionIA.Visibility = Visibility.Collapsed;
@@ -635,6 +641,11 @@ int main(int argc, char **argv) {
 
             RebuildEditorTabs();
             RefreshAllLiveViews();
+
+            if (_isDrawerOpen && _activeDrawerSection == "EXPLORER")
+            {
+                RenderHierarchicalProjectTree();
+            }
         }
 
         private void RebuildEditorTabs()
@@ -662,7 +673,7 @@ int main(int argc, char **argv) {
                 var titleBlock = new TextBlock
                 {
                     Text = fileName,
-                    FontFamily = new FontFamily("Segoe UI"),
+                    FontFamily = new FontFamily("Arial"),
                     FontSize = 12,
                     FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
                     Foreground = isActive
@@ -678,7 +689,7 @@ int main(int argc, char **argv) {
                 var closeTabBtn = new TextBlock
                 {
                     Text = "  ✕",
-                    FontFamily = new FontFamily("Segoe UI"),
+                    FontFamily = new FontFamily("Arial"),
                     FontSize = 10.5,
                     Foreground = new SolidColorBrush(Color.FromRgb(0x6e, 0x76, 0x81)),
                     VerticalAlignment = VerticalAlignment.Center,
@@ -754,10 +765,13 @@ int main(int argc, char **argv) {
                 {
                     _ragEngine.IndexProject(_userWorkspaceRoot);
                     OpenFileInEditor(lastImported);
-                    if (_isDrawerOpen && _activeDrawerSection == "EXPLORER")
-                    {
-                        PopulateDrawerSection("EXPLORER");
-                    }
+
+                    _isDrawerOpen = true;
+                    _activeDrawerSection = "EXPLORER";
+                    SideDrawerBorder.Width = 280;
+                    UpdateSidebarIndicators("EXPLORER");
+                    PopulateDrawerSection("EXPLORER");
+                    RebuildEditorTabs();
 
                     AppendAssistantCard(
                         "ARCHIVOS",
@@ -776,31 +790,31 @@ int main(int argc, char **argv) {
             {
                 Title = "Crear Nuevo Archivo de Código en el Espacio de Trabajo",
                 InitialDirectory = _userWorkspaceRoot,
-                FileName = "nuevo_modulo.c",
+                FileName = "nuevo_archivo.c",
                 Filter = "Código C/C++ (*.c;*.cpp)|*.c;*.cpp|SQL (*.sql)|*.sql|C# (*.cs)|*.cs|Python (*.py)|*.py|TypeScript / JS (*.ts;*.js)|*.ts;*.js|Todos los Archivos (*.*)|*.*"
             };
 
             if (dlg.ShowDialog() == true && !EsRutaInternaDelMotor(dlg.FileName))
             {
-                string ext = System.IO.Path.GetExtension(dlg.FileName).ToLowerInvariant();
-                string initialTemplate = ext switch
-                {
-                    ".sql" => "-- Esquema Relacional Normalizado (3FN)\nCREATE TABLE entidad_ejemplo (\n    id BIGSERIAL PRIMARY KEY,\n    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n",
-                    ".py" => "# Módulo Python — Ingeniería de Software\ndef ejecutar_proceso(datos_entrada: str) -> bool:\n    if not datos_entrada:\n        return False\n    return True\n",
-                    ".cs" => "using System;\n\nnamespace ProyectoUsuario\n{\n    public sealed class ServicioDominio\n    {\n        public bool ValidarEntrada(string entrada) => !string.IsNullOrWhiteSpace(entrada);\n    }\n}\n",
-                    _ => "// Nuevo Módulo de Código Fuente\n#include <stdio.h>\n\nint main(void) {\n    printf(\"Módulo inicializado correctamente.\\n\");\n    return 0;\n}\n"
-                };
+                // Archivo completamente vacío (0 bytes) sin código ni plantillas simuladas
+                File.WriteAllText(dlg.FileName, string.Empty, Encoding.UTF8);
+                _fileBaselines[dlg.FileName] = Array.Empty<string>();
+                _preAiEditSnapshots[dlg.FileName] = string.Empty;
 
-                File.WriteAllText(dlg.FileName, initialTemplate, Encoding.UTF8);
-                _fileBaselines[dlg.FileName] = SplitLines(initialTemplate);
-                _preAiEditSnapshots[dlg.FileName] = initialTemplate;
+                if (!_openTabFiles.Contains(dlg.FileName))
+                {
+                    _openTabFiles.Add(dlg.FileName);
+                }
+
                 _ragEngine.IndexProject(_userWorkspaceRoot);
                 OpenFileInEditor(dlg.FileName);
 
-                if (_isDrawerOpen && _activeDrawerSection == "EXPLORER")
-                {
-                    PopulateDrawerSection("EXPLORER");
-                }
+                _isDrawerOpen = true;
+                _activeDrawerSection = "EXPLORER";
+                SideDrawerBorder.Width = 280;
+                UpdateSidebarIndicators("EXPLORER");
+                PopulateDrawerSection("EXPLORER");
+                RebuildEditorTabs();
             }
         }
 
@@ -919,8 +933,12 @@ int main(int argc, char **argv) {
                 ClearEditorToEmptyState();
             }
 
-            PopulateDrawerSection("EXPLORER");
+            _isDrawerOpen = true;
+            _activeDrawerSection = "EXPLORER";
+            SideDrawerBorder.Width = 280;
             UpdateSidebarIndicators("EXPLORER");
+            PopulateDrawerSection("EXPLORER");
+            RebuildEditorTabs();
         }
 
         // =====================================================================
@@ -940,7 +958,7 @@ int main(int argc, char **argv) {
                 }
 
                 _showInlineDiff = true;
-                BtnDiffModeToggle.Content = "[DIFF] Diferencias: ACTIVO";
+                BtnDiffModeToggle.Content = "⇄ Diferencias: ACTIVO";
 
                 PanelProgresoEdicionIA.Visibility = Visibility.Visible;
                 PanelBotonesConfirmacion.Visibility = Visibility.Collapsed;
@@ -2099,7 +2117,7 @@ int main(int argc, char **argv) {
 
                 var confirmBtn = new Button
                 {
-                    Content = "[OK] Confirmar y Guardar Cambios Actuales",
+                    Content = "✓ Confirmar y Guardar Cambios Actuales",
                     Style = (Style)FindResource("ToolbarMiniBtn"),
                     Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
                     FontWeight = FontWeights.Bold,
@@ -2111,7 +2129,7 @@ int main(int argc, char **argv) {
 
                 var revertBtn = new Button
                 {
-                    Content = "[REV] Revertir Cambios al Original",
+                    Content = "↺ Revertir Cambios al Original",
                     Style = (Style)FindResource("ToolbarMiniBtn"),
                     Foreground = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
                     FontWeight = FontWeights.Bold,
@@ -2366,9 +2384,9 @@ int main(int argc, char **argv) {
                     };
                     var dirText = new TextBlock
                     {
-                        Text = $"[-] {dirName}/",
-                        FontFamily = new FontFamily("Consolas"),
-                        FontSize = 11,
+                        Text = $"📁 {dirName}/",
+                        FontFamily = new FontFamily("Segoe UI Symbol, Arial"),
+                        FontSize = 11.5,
                         FontWeight = FontWeights.Bold,
                         Foreground = new SolidColorBrush(Color.FromRgb(0x79, 0xc0, 0xff))
                     };
@@ -2382,16 +2400,16 @@ int main(int argc, char **argv) {
                     string ext = System.IO.Path.GetExtension(file).ToLowerInvariant();
                     bool isActive = string.Equals(file, _activeFilePath, StringComparison.OrdinalIgnoreCase);
 
-                    var (badgeText, badgeColor) = ext switch
+                    string iconGlyph = ext switch
                     {
-                        ".sql" => ("[SQL]", Color.FromRgb(0x44, 0x93, 0xf8)),
-                        ".c" or ".h" or ".cpp" or ".hpp" => ("[C/C++]", Color.FromRgb(0x58, 0xa6, 0xff)),
-                        ".py" => ("[PY]", Color.FromRgb(0xd2, 0x99, 0x22)),
-                        ".cs" => ("[C#]", Color.FromRgb(0x3f, 0xb9, 0x50)),
-                        ".js" or ".ts" or ".tsx" => ("[JS/TS]", Color.FromRgb(0xe3, 0xb3, 0x41)),
-                        ".json" or ".yaml" or ".yml" => ("[CFG]", Color.FromRgb(0x8b, 0x94, 0x9e)),
-                        ".md" => ("[DOC]", Color.FromRgb(0xa3, 0x71, 0xf7)),
-                        _ => ("[TXT]", Color.FromRgb(0x6e, 0x76, 0x81))
+                        ".sql" => "🗄",
+                        ".c" or ".h" or ".cpp" or ".hpp" => "⚙",
+                        ".py" => "🐍",
+                        ".cs" => "💠",
+                        ".js" or ".ts" or ".tsx" => "📜",
+                        ".json" or ".yaml" or ".yml" => "⚙",
+                        ".md" => "📝",
+                        _ => "📄"
                     };
 
                     long sizeBytes = 0;
@@ -2410,17 +2428,16 @@ int main(int argc, char **argv) {
                     };
 
                     var rowGrid = new Grid();
-                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                     rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                     var badgeBlock = new TextBlock
                     {
-                        Text = badgeText,
-                        FontFamily = new FontFamily("Consolas"),
-                        FontSize = 10,
-                        FontWeight = FontWeights.Bold,
-                        Foreground = new SolidColorBrush(badgeColor),
+                        Text = iconGlyph,
+                        FontFamily = new FontFamily("Segoe UI Symbol, Arial"),
+                        FontSize = 13,
+                        HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center
                     };
                     Grid.SetColumn(badgeBlock, 0);
@@ -2434,7 +2451,7 @@ int main(int argc, char **argv) {
                         Foreground = isActive ? new SolidColorBrush(Color.FromRgb(0xe6, 0xed, 0xf3)) : new SolidColorBrush(Color.FromRgb(0xad, 0xb5, 0xc0)),
                         TextTrimming = TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center,
-                        Margin = new Thickness(2, 0, 4, 0)
+                        Margin = new Thickness(4, 0, 4, 0)
                     };
                     Grid.SetColumn(nameBlock, 1);
 
@@ -2774,6 +2791,7 @@ int main(int argc, char **argv) {
         private void BtnSkillApiSec_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Diseña la seguridad de la API con autenticación OAuth2/OIDC, tokens JWT RS256, rate limiting y contrato OpenAPI 3.1.");
         private void BtnSkillPerf_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Optimiza el rendimiento del archivo activo aplicando zero-copy, minimizando asignaciones de memoria y evitando fugas.");
         private void BtnSkillMicroservices_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Diseña una arquitectura de microservicios basada en eventos con patrón Saga, buzón Outbox y resiliencia Circuit Breaker.");
+        private void BtnSkillRag_Click(object sender, RoutedEventArgs e) => ExecuteSkillPrompt("Indexa y explica cómo el motor RAG multidocumento en memoria cita los fragmentos del proyecto activo para garantizar cero alucinaciones.");
 
         private void ExecuteSkillPrompt(string promptText)
         {
@@ -2790,7 +2808,7 @@ int main(int argc, char **argv) {
                 "Estación de Ingeniería de Software y Ciberseguridad Lista",
                 "• Espacio de trabajo limpio y aislado para archivos del usuario.\n" +
                 "• RAG Multidocumento Activo: Se indexan semánticamente todos los archivos del proyecto para evitar alucinaciones.\n" +
-                "• Progreso y Confirmación en Vivo: Cuando aplica cambios de la IA, el editor muestra las diferencias en verde (+) y rojo (-) junto con los botones '[OK] Confirmar y Guardar Cambios' y '[REV] Revertir al Original', sin duplicar nunca el código.",
+                "• Progreso y Confirmación en Vivo: Cuando aplica cambios de la IA, el editor muestra las diferencias en verde (+) y rojo (-) junto con los botones '✓ Confirmar y Guardar Cambios' y '↺ Revertir al Original', sin duplicar nunca el código.",
                 null
             );
         }
@@ -2897,7 +2915,7 @@ int main(int argc, char **argv) {
 
             var applyBtn = new Button
             {
-                Content = "[AUTO] Aplicar en Editor (Progreso en Vivo)",
+                Content = "⚡ Aplicar en Editor (Progreso en Vivo)",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x3f, 0xb9, 0x50)),
                 FontWeight = FontWeights.Bold,
@@ -2906,7 +2924,7 @@ int main(int argc, char **argv) {
 
             var confirmDirectBtn = new Button
             {
-                Content = "[OK] Confirmar Cambios",
+                Content = "✓ Confirmar Cambios",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x93, 0xf8)),
                 FontWeight = FontWeights.Bold,
@@ -2916,7 +2934,7 @@ int main(int argc, char **argv) {
 
             var revertDirectBtn = new Button
             {
-                Content = "[REV] Revertir",
+                Content = "↺ Revertir",
                 Style = (Style)FindResource("ToolbarMiniBtn"),
                 Foreground = new SolidColorBrush(Color.FromRgb(0xe5, 0x53, 0x4b)),
                 FontWeight = FontWeights.Bold,
@@ -2935,14 +2953,14 @@ int main(int argc, char **argv) {
 
                 if (currentNormalized == capturedNormalized || currentNormalized.EndsWith(capturedNormalized, StringComparison.Ordinal))
                 {
-                    MostrarBannerConfirmacionCambios("Los cambios ya están aplicados en el editor. Pulse '[OK] Confirmar y Guardar Cambios' o '[REV] Revertir':");
+                    MostrarBannerConfirmacionCambios("Los cambios ya están aplicados en el editor. Pulse '✓ Confirmar y Guardar Cambios' o '↺ Revertir':");
                     confirmDirectBtn.Visibility = Visibility.Visible;
                     revertDirectBtn.Visibility = Visibility.Visible;
                     return;
                 }
 
                 applyBtn.IsEnabled = false;
-                applyBtn.Content = "[PROGRESO] Aplicando en editor...";
+                applyBtn.Content = "⚡ Aplicando en editor...";
 
                 // Partir siempre desde la línea base limpia del archivo para NUNCA duplicar bloques
                 string baseText = (!string.IsNullOrEmpty(_activeFilePath) && _fileBaselines.TryGetValue(_activeFilePath, out var bLines))
@@ -2957,7 +2975,7 @@ int main(int argc, char **argv) {
 
                 await AplicarCambiosProgresivosEnEditorAsync(SplitLines(targetText), "Aplicación de cambios en el editor");
 
-                applyBtn.Content = "[OK] Aplicado en Editor (Pendiente de Confirmar)";
+                applyBtn.Content = "✓ Aplicado en Editor (Pendiente de Confirmar)";
                 applyBtn.IsEnabled = true;
                 confirmDirectBtn.Visibility = Visibility.Visible;
                 revertDirectBtn.Visibility = Visibility.Visible;
@@ -2966,7 +2984,7 @@ int main(int argc, char **argv) {
             confirmDirectBtn.Click += (s, e) =>
             {
                 SaveCurrentFile();
-                applyBtn.Content = "[OK] Cambios Confirmados y Guardados";
+                applyBtn.Content = "✓ Cambios Confirmados y Guardados";
                 confirmDirectBtn.Visibility = Visibility.Collapsed;
                 revertDirectBtn.Visibility = Visibility.Collapsed;
             };
@@ -2974,7 +2992,7 @@ int main(int argc, char **argv) {
             revertDirectBtn.Click += (s, e) =>
             {
                 BtnRevertChanges_Click(s, e);
-                applyBtn.Content = "[AUTO] Aplicar en Editor (Progreso en Vivo)";
+                applyBtn.Content = "⚡ Aplicar en Editor (Progreso en Vivo)";
                 confirmDirectBtn.Visibility = Visibility.Collapsed;
                 revertDirectBtn.Visibility = Visibility.Collapsed;
             };
@@ -3171,7 +3189,7 @@ int main(int argc, char **argv) {
                 return (
                     $"Refactorización 3FN, Seguridad CWE y Calidad ISO-25010 para '{activeFile}'",
                     $"Se analizaron las {lineCount} líneas de su archivo '{activeFile}' detectando {_currentFindings.Count} mejoras críticas:\n{summary}{ragCitationFooter}\n\n" +
-                    "Pulse '[AUTO] Aplicar en Editor (Progreso en Vivo)' para aplicar las correcciones directamente sobre su archivo sin perder ninguna de sus tablas o funciones:",
+                    "Pulse '⚡ Aplicar en Editor (Progreso en Vivo)' para aplicar las correcciones directamente sobre su archivo sin perder ninguna de sus tablas o funciones:",
                     refactoredUserFile
                 );
             }
@@ -3400,7 +3418,7 @@ public sealed class ServicioGestionUsuarios {
                 $"Diagnóstico de Ingeniería de Software y Ciberseguridad: '{activeFile}'",
                 $"Anclado al árbol sintáctico de '{activeFile}' ({lineCount} líneas):\n" +
                 $"Hallazgos detectados:\n{findingsSummary}{ragCitationFooter}\n\n" +
-                "Puede pulsar '[AUTO] Remediación IA en Vivo' en la barra superior del editor para aplicar las correcciones sobre su archivo y confirmarlas con un clic.",
+                "Puede pulsar '⚡ Remediación IA en Vivo' en la barra superior del editor para aplicar las correcciones sobre su archivo y confirmarlas con un clic.",
                 _currentFindings.Count > 0 ? GenerarVersionRefactorizadaDelArchivoActivo() : null
             );
         }
@@ -3408,7 +3426,7 @@ public sealed class ServicioGestionUsuarios {
         private void BtnToggleDiffView_Click(object sender, RoutedEventArgs e)
         {
             _showInlineDiff = !_showInlineDiff;
-            BtnDiffModeToggle.Content = _showInlineDiff ? "[DIFF] Diferencias: ACTIVO" : "[DIFF] Diferencias: INACTIVO";
+            BtnDiffModeToggle.Content = _showInlineDiff ? "⇄ Diferencias: ACTIVO" : "⇄ Diferencias: INACTIVO";
             RefreshAllLiveViews();
         }
 
